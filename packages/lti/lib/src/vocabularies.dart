@@ -114,6 +114,21 @@ abstract final class LtiRoles {
 }
 
 abstract final class LtiContextTypes {
+  /// Normalize only the deprecated context aliases listed in Core Appendix A.1.
+  /// Unknown extension URIs are preserved; arbitrary short names are not mapped.
+  static String normalize(String type) => _legacyAliases[type] ?? type;
+
+  static const _legacyAliases = {
+    'CourseTemplate': courseTemplate,
+    'CourseOffering': courseOffering,
+    'CourseSection': courseSection,
+    'Group': group,
+    'urn:lti:context-type:ims/lis/CourseTemplate': courseTemplate,
+    'urn:lti:context-type:ims/lis/CourseOffering': courseOffering,
+    'urn:lti:context-type:ims/lis/CourseSection': courseSection,
+    'urn:lti:context-type:ims/lis/Group': group,
+  };
+
   static const courseTemplate =
       'http://purl.imsglobal.org/vocab/lis/v2/course#CourseTemplate';
   static const courseOffering =

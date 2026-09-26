@@ -174,3 +174,14 @@ and NRPS disabled in ByCS. It uses in-memory transactions for a single developme
 process; restarting invalidates pending logins. Use a test course, not a public
 production deployment. The earlier diagnostic runner remains separate and does
 not feed registrations into this server automatically.
+
+### Interoperability findings
+
+A live ByCS attempt reached context validation after the local Windows/WSL clock
+was synchronized (it had lagged external HTTPS timestamps by about 84 seconds).
+The next failure was the context vocabulary check. Moodle 4.5's
+[launch builder](https://github.com/moodle/moodle/blob/MOODLE_405_STABLE/mod/lti/locallib.php)
+sends short context names such as `CourseSection`. The library now normalizes
+only the aliases explicitly listed in Core Appendix A.1. This is a targeted
+compatibility correction; the actual ByCS payload was not stored or inspected,
+and a fresh live launch is required to confirm it resolves that failure.

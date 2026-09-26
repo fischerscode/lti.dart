@@ -40,9 +40,13 @@ not a certification or a claim that all LTI Advantage services are implemented.
 
 ## Explicit policies and limits
 
-Only current URI vocabularies are recognized as standard values. Deprecated role
-short names and legacy URNs are optional interoperability features and are not
-normalized. Unknown extension URIs can accompany recognized vocabulary values.
+Context types accept the four canonical URIs and the eight deprecated short-name/URN
+aliases listed in [Core Appendix A.1](https://www.imsglobal.org/spec/lti/v1p3/#context-type-vocabulary).
+`launch.context.types` normalizes those exact aliases to canonical URIs, while
+`launch.claims` retains the original signed values. This accommodates Moodle
+course launches that send `CourseSection` or `Group`. Arbitrary short names and
+case variants are still rejected. Role vocabularies continue to recognize only
+current URIs; deprecated role short names and legacy URNs are not normalized. Unknown extension URIs can accompany recognized vocabulary values.
 No role helper automatically grants application permissions.
 
 Malformed present optional objects (including JSON null) are rejected rather than

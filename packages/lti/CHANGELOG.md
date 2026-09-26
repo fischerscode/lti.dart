@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Normalize standard legacy context names and URNs for Moodle-compatible launches.
+
 - Identify failing claim checks and field names without exposing claim values.
 
 - Add verified Deep Linking launches, immutable content items and negotiated signed responses.

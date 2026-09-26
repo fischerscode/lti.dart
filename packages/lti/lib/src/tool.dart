@@ -419,7 +419,10 @@ sealed class LtiLaunch {
       );
     }
     final types = data.containsKey('type')
-        ? stringList(data['type'], field: 'context.type')
+        ? stringList(
+            data['type'],
+            field: 'context.type',
+          ).map(LtiContextTypes.normalize).toList(growable: false)
         : const <String>[];
     if (data.containsKey('type') &&
         (!types.any(LtiContextTypes.standard.contains) ||
