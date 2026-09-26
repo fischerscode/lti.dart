@@ -3,6 +3,7 @@ enum LtiErrorCode {
   invalidRequest,
   unknownRegistration,
   invalidState,
+  authenticationFailed,
   invalidToken,
   invalidClaims,
   unsupportedMessage,

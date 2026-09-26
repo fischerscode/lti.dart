@@ -99,23 +99,36 @@ final class LtiShelf {
       }
       state = parameters['state'];
       final token = parameters['id_token'];
+      final authenticationError = parameters['error'];
       if (state == null ||
           !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(state) ||
-          token == null) {
+          (token == null &&
+              (authenticationError == null || authenticationError.isEmpty)) ||
+          (token != null && authenticationError != null)) {
         throw const LtiException(
           LtiErrorCode.invalidRequest,
           'Expected state and id_token.',
         );
       }
       final binding = _browserBinding(request, state);
+      if (authenticationError != null) {
+        await tool.completeLoginError(state: state, browserBinding: binding);
+      }
       launch = await tool.completeResourceLaunch(
         state: state,
         browserBinding: binding,
-        idToken: token,
+        idToken: token!,
       );
     } on LtiException catch (error) {
       return Response(
-        error.code == LtiErrorCode.platformUnavailable ? 502 : 400,
+        switch (error.code) {
+          LtiErrorCode.platformUnavailable => 502,
+          LtiErrorCode.invalidToken ||
+          LtiErrorCode.invalidClaims ||
+          LtiErrorCode.authenticationFailed ||
+          LtiErrorCode.unknownRegistration when path == launchPath => 401,
+          _ => 400,
+        },
         body: 'LTI request rejected: ${error.code.name}',
         headers: {
           ..._headers,

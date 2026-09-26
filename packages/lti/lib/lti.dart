@@ -11,7 +11,11 @@ export 'src/models.dart'
         LtiLoginRedirect,
         LtiUser,
         LtiResourceLink,
-        LtiContext;
+        LtiContext,
+        LtiPlatformInstance,
+        LtiLaunchPresentation,
+        LtiDocumentTarget,
+        LtiLis;
 export 'src/store.dart'
     show
         LtiRegistrationStore,
@@ -20,3 +24,4 @@ export 'src/store.dart'
         LtiTransactionStore,
         MemoryLtiTransactionStore;
 export 'src/tool.dart';
+export 'src/vocabularies.dart';

@@ -2,8 +2,8 @@
 
 The target is LTI 1.3 Core plus Deep Linking 2.0, AGS 2.0 and NRPS 2.0 on the
 **tool side**. This matrix is an implementation plan, not a conformance claim.
-Before declaring compatibility, expand it into a clause-by-clause normative
-checklist against the specifications and their errata.
+See the [Core protocol checklist](core-conformance.md) for requirement mappings,
+errata decisions, tested behavior and remaining integration obligations.
 
 | Area | Status | Evidence / remaining work |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ checklist against the specifications and their errata.
 | Resource launch | Initial implementation | Required claim checks, anonymous users, immutable typed resource/context |
 | Replay protection | Implemented | Atomic consume contract and concurrent-submission tests |
 | HTTP adapter | Implemented | POST callback, form limits, duplicate rejection, cookie preservation |
-| Full Core optional claims | Pending | Typed presentation/LIS/platform/mentor data, role vocabulary validation; unknown claims retained |
+| Core optional claims and vocabularies | Implemented | Typed presentation/LIS/platform/mentor data, standard roles/context types; unknown claims retained |
 | Production storage adapters | Pending | Shared SQL/Redis transactions and backend-specific atomicity tests |
 | Tool signing and public JWKS | Pending | Signing interface, outgoing signatures and rotation |
 | Deep Linking 2.0 | Pending | Request validation, accepted types/targets, content items, data echo, signed form response |

@@ -5,6 +5,7 @@ import 'errors.dart';
 import 'jwks.dart';
 import 'models.dart';
 import 'store.dart';
+import 'vocabularies.dart';
 
 /// Orchestrates login and validation without depending on a web framework.
 final class LtiTool {
@@ -126,6 +127,29 @@ final class LtiTool {
     return LtiResourceLaunch._(registration, claims);
   }
 
+  /// Terminates a browser-bound OIDC error response. Error descriptions from the
+  /// platform are intentionally not reflected or logged by the protocol library.
+  Future<Never> completeLoginError({
+    required String state,
+    required String browserBinding,
+  }) async {
+    final transaction = await transactions.consume(
+      state: state,
+      browserBinding: browserBinding,
+      now: _clock(),
+    );
+    if (transaction == null) {
+      throw const LtiException(
+        LtiErrorCode.invalidState,
+        'Unknown, expired or unbound login.',
+      );
+    }
+    throw const LtiException(
+      LtiErrorCode.authenticationFailed,
+      'Platform authentication failed.',
+    );
+  }
+
   void _validateClaims(
     Map<String, Object?> claims,
     LtiRegistration registration,
@@ -144,6 +168,11 @@ final class LtiTool {
     final audience = claims['aud'];
     final audiences = audience is String ? [audience] : stringList(audience);
     if (!audiences.contains(registration.clientId) ||
+        audiences.any(
+          (audience) =>
+              audience != registration.clientId &&
+              !registration.additionalTrustedAudiences.contains(audience),
+        ) ||
         (audiences.length > 1 && claims['azp'] != registration.clientId) ||
         (claims.containsKey('azp') && claims['azp'] != registration.clientId)) {
       invalid();
@@ -204,12 +233,16 @@ final class LtiResourceLaunch {
             subject: sub,
             name: optionalString(claims, 'name'),
             email: optionalString(claims, 'email'),
+            givenName: optionalString(claims, 'given_name'),
+            familyName: optionalString(claims, 'family_name'),
+            locale: optionalString(claims, 'locale'),
           );
     roles = stringList(claims[LtiClaims.roles]);
-    if (roles.any((role) => !(Uri.tryParse(role)?.hasScheme ?? false))) {
+    if (roles.any((role) => !(Uri.tryParse(role)?.hasScheme ?? false)) ||
+        (roles.isNotEmpty && !roles.any(LtiRoles.isStandard))) {
       throw const LtiException(
         LtiErrorCode.invalidClaims,
-        'Roles must be URIs.',
+        'Roles must be URIs and include a standard role when nonempty.',
       );
     }
     final link = jsonObject(claims[LtiClaims.resourceLink]);
@@ -225,9 +258,32 @@ final class LtiResourceLaunch {
       title: optionalString(link, 'title'),
       description: optionalString(link, 'description'),
     );
-    final contextData = claims[LtiClaims.context];
-    context = contextData == null ? null : _context(jsonObject(contextData));
-    final customData = claims[LtiClaims.custom];
+    final contextData = optionalObject(claims, LtiClaims.context);
+    context = contextData == null ? null : _context(contextData);
+    final platformData = optionalObject(claims, LtiClaims.toolPlatform);
+    platform = platformData == null
+        ? null
+        : LtiPlatformInstance.fromJson(platformData);
+    final presentationData = optionalObject(
+      claims,
+      LtiClaims.launchPresentation,
+    );
+    presentation = presentationData == null
+        ? null
+        : LtiLaunchPresentation.fromJson(presentationData);
+    final lisData = optionalObject(claims, LtiClaims.lis);
+    lis = lisData == null ? null : LtiLis.fromJson(lisData);
+    mentorSubjectIds = claims.containsKey(LtiClaims.roleScopeMentor)
+        ? stringList(claims[LtiClaims.roleScopeMentor])
+        : const [];
+    if (mentorSubjectIds.any((id) => !isLtiIdentifier(id)) ||
+        (mentorSubjectIds.isNotEmpty && !roles.contains(LtiRoles.mentor))) {
+      throw const LtiException(
+        LtiErrorCode.invalidClaims,
+        'Mentor subjects require the Mentor role and valid user IDs.',
+      );
+    }
+    final customData = optionalObject(claims, LtiClaims.custom);
     custom = customData == null
         ? const {}
         : Map.unmodifiable(
@@ -248,6 +304,10 @@ final class LtiResourceLaunch {
   late final List<String> roles;
   late final LtiResourceLink resourceLink;
   late final LtiContext? context;
+  late final LtiPlatformInstance? platform;
+  late final LtiLaunchPresentation? presentation;
+  late final LtiLis? lis;
+  late final List<String> mentorSubjectIds;
   late final Map<String, String> custom;
   String get deploymentId => claims[LtiClaims.deploymentId]! as String;
   String get targetLinkUri => claims[LtiClaims.targetLinkUri]! as String;
@@ -260,11 +320,22 @@ final class LtiResourceLaunch {
         'Invalid context identifier.',
       );
     }
+    final types = data.containsKey('type')
+        ? stringList(data['type'])
+        : const <String>[];
+    if (data.containsKey('type') &&
+        (!types.any(LtiContextTypes.standard.contains) ||
+            types.any((type) => !(Uri.tryParse(type)?.hasScheme ?? false)))) {
+      throw const LtiException(
+        LtiErrorCode.invalidClaims,
+        'Context types must include a standard context URI.',
+      );
+    }
     return LtiContext(
       id: id,
       label: optionalString(data, 'label'),
       title: optionalString(data, 'title'),
-      types: data.containsKey('type') ? stringList(data['type']) : const [],
+      types: types,
     );
   }
 }

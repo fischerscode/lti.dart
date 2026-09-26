@@ -55,6 +55,7 @@ final class TestPlatform {
     redirectUri: Uri.parse('https://tool.example/lti/launch'),
     deploymentIds: {'deployment', 'other-deployment'},
     targetLinkUris: {'https://tool.example/activity'},
+    additionalTrustedAudiences: {'another'},
   );
   Map<String, String> get loginParameters => {
     'iss': registration.issuer,

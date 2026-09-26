@@ -52,6 +52,7 @@ void main() {
   Future<Request> callback(
     Response response, {
     bool includeCookie = true,
+    bool invalidAudience = false,
   }) async {
     final redirect = Uri.parse(response.headers['location']!);
     final query = redirect.queryParameters;
@@ -61,7 +62,9 @@ void main() {
       browserBinding: '',
       expiresAt: platform.now,
     );
-    final token = platform.sign(platform.claims(login));
+    final claims = platform.claims(login);
+    if (invalidAudience) claims['aud'] = 'wrong-client';
+    final token = platform.sign(claims);
     return Request(
       'POST',
       Uri.parse('https://tool.example/lti/launch'),
@@ -74,6 +77,64 @@ void main() {
           .query,
     );
   }
+
+  test('invalid audience returns 401 without dispatching a launch', () async {
+    final result = await adapter.handler(
+      await callback(await login(), invalidAudience: true),
+    );
+    expect(result.statusCode, 401);
+    expect(launches, 0);
+  });
+
+  test(
+    'OIDC error consumes a bound transaction without reflecting descriptions',
+    () async {
+      final start = await login();
+      final state = Uri.parse(start.headers['location']!)
+          .queryParameters['state']!;
+      final request = Request(
+        'POST',
+        Uri.parse('https://tool.example/lti/launch'),
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'cookie': start.headers['set-cookie']!.split(';').first,
+        },
+        body: Uri(
+          queryParameters: {
+            'state': state,
+            'error': 'login_required',
+            'error_description': 'private platform diagnostic',
+          },
+        ).query,
+      );
+      final result = await adapter.handler(request);
+      expect(result.statusCode, 401);
+      expect(
+        await result.readAsString(),
+        'LTI request rejected: authenticationFailed',
+      );
+      expect(platform.requests, 0);
+      expect((await adapter.handler(await callback(start))).statusCode, 400);
+      expect(launches, 0);
+    },
+  );
+
+  test('OIDC error without browser binding cannot consume a login', () async {
+    final start = await login();
+    final state = Uri.parse(start.headers['location']!)
+        .queryParameters['state']!;
+    final result = await adapter.handler(
+      Request(
+        'POST',
+        Uri.parse('https://tool.example/lti/launch'),
+        headers: {'content-type': 'application/x-www-form-urlencoded'},
+        body: Uri(queryParameters: {'state': state, 'error': 'login_required'})
+            .query,
+      ),
+    );
+    expect(result.statusCode, 400);
+    expect((await adapter.handler(await callback(start))).statusCode, 303);
+  });
 
   for (final method in ['GET', 'POST']) {
     test(

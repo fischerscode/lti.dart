@@ -11,6 +11,10 @@ abstract final class LtiClaims {
   static const roles = '${prefix}roles';
   static const context = '${prefix}context';
   static const custom = '${prefix}custom';
+  static const toolPlatform = '${prefix}tool_platform';
+  static const launchPresentation = '${prefix}launch_presentation';
+  static const lis = '${prefix}lis';
+  static const roleScopeMentor = '${prefix}role_scope_mentor';
 }
 
 /// Administrator-provisioned trust configuration; never discovered from a JWT.
@@ -23,8 +27,12 @@ final class LtiRegistration {
     required this.redirectUri,
     required Set<String> deploymentIds,
     required Set<String> targetLinkUris,
+    Set<String> additionalTrustedAudiences = const {},
     this.tokenEndpoint,
   }) : deploymentIds = Set.unmodifiable(deploymentIds),
+       additionalTrustedAudiences = Set.unmodifiable(
+         additionalTrustedAudiences,
+       ),
        targetLinkUris = Set.unmodifiable(targetLinkUris) {
     for (final uri in [
       Uri.parse(issuer),
@@ -46,7 +54,8 @@ final class LtiRegistration {
     if (clientId.isEmpty ||
         deploymentIds.isEmpty ||
         targetLinkUris.isEmpty ||
-        deploymentIds.any((id) => !isLtiIdentifier(id))) {
+        deploymentIds.any((id) => !isLtiIdentifier(id)) ||
+        additionalTrustedAudiences.any((id) => id.isEmpty)) {
       throw ArgumentError(
         'A client, deployments and allowed targets are required.',
       );
@@ -64,6 +73,10 @@ final class LtiRegistration {
 
   /// Exact allowed resource URLs. Query parameters are part of the match.
   final Set<String> targetLinkUris;
+
+  /// Other audiences explicitly trusted for tokens issued to this client.
+  /// An `azp` matching the client is still required for multi-audience tokens.
+  final Set<String> additionalTrustedAudiences;
 }
 
 /// Validated shape of an unsigned third-party login initiation.
@@ -100,10 +113,115 @@ final class LtiLoginRedirect {
 
 /// User identifiers are local to the issuer. Never identify users by email.
 final class LtiUser {
-  const LtiUser({required this.subject, this.name, this.email});
+  const LtiUser({
+    required this.subject,
+    this.name,
+    this.email,
+    this.givenName,
+    this.familyName,
+    this.locale,
+  });
   final String subject;
   final String? name;
   final String? email;
+  final String? givenName;
+  final String? familyName;
+  final String? locale;
+}
+
+/// Platform instance metadata, not a substitute for the registration's issuer.
+final class LtiPlatformInstance {
+  LtiPlatformInstance.fromJson(Map<String, Object?> json)
+    : guid = requiredIdentifier(json, 'guid'),
+      contactEmail = optionalString(json, 'contact_email'),
+      description = optionalString(json, 'description'),
+      name = optionalString(json, 'name'),
+      url = optionalHttpsUri(json, 'url'),
+      productFamilyCode = optionalString(json, 'product_family_code'),
+      version = optionalString(json, 'version');
+
+  final String guid;
+  final String? contactEmail;
+  final String? description;
+  final String? name;
+  final Uri? url;
+  final String? productFamilyCode;
+  final String? version;
+}
+
+enum LtiDocumentTarget { frame, iframe, window }
+
+final class LtiLaunchPresentation {
+  LtiLaunchPresentation.fromJson(Map<String, Object?> json)
+    : documentTarget = _target(json),
+      height = _dimension(json, 'height'),
+      width = _dimension(json, 'width'),
+      returnUrl = optionalHttpsUri(json, 'return_url'),
+      locale = optionalString(json, 'locale');
+
+  final LtiDocumentTarget? documentTarget;
+  final int? height;
+  final int? width;
+  final Uri? returnUrl;
+  final String? locale;
+
+  static LtiDocumentTarget? _target(Map<String, Object?> json) {
+    final value = optionalString(json, 'document_target');
+    if (value == null) return null;
+    for (final target in LtiDocumentTarget.values) {
+      if (target.name == value) return target;
+    }
+    throw const LtiException(
+      LtiErrorCode.invalidClaims,
+      'Invalid document target.',
+    );
+  }
+
+  static int? _dimension(Map<String, Object?> json, String key) {
+    if (!json.containsKey(key)) return null;
+    final value = json[key];
+    if (value is! num ||
+        !value.isFinite ||
+        value < 0 ||
+        value != value.truncateToDouble()) {
+      throw const LtiException(
+        LtiErrorCode.invalidClaims,
+        'Invalid presentation dimension.',
+      );
+    }
+    return value.toInt();
+  }
+
+  /// Builds a return URL, retaining unrelated query parameters. Does not redirect.
+  /// Only include messages appropriate for disclosure to the platform/browser.
+  Uri? returnUri({
+    String? message,
+    String? errorMessage,
+    String? log,
+    String? errorLog,
+  }) => returnUrl?.replace(
+    queryParameters: {
+      ...returnUrl!.queryParametersAll,
+      'lti_msg': ?message,
+      'lti_errormsg': ?errorMessage,
+      'lti_log': ?log,
+      'lti_errorlog': ?errorLog,
+    },
+  );
+}
+
+final class LtiLis {
+  LtiLis.fromJson(Map<String, Object?> json)
+    : personSourcedId = optionalString(json, 'person_sourcedid'),
+      courseOfferingSourcedId = optionalString(
+        json,
+        'course_offering_sourcedid',
+      ),
+      courseSectionSourcedId = optionalString(json, 'course_section_sourcedid');
+
+  final String? personSourcedId;
+  final String? courseOfferingSourcedId;
+  final String? courseSectionSourcedId;
 }
 
 final class LtiResourceLink {
@@ -142,6 +260,36 @@ String requiredString(Map<String, Object?> json, String name) {
   }
   return value;
 }
+
+String requiredIdentifier(Map<String, Object?> json, String name) {
+  final value = requiredString(json, name);
+  if (!isLtiIdentifier(value)) {
+    throw const LtiException(
+      LtiErrorCode.invalidClaims,
+      'Invalid LTI identifier.',
+    );
+  }
+  return value;
+}
+
+Uri? optionalHttpsUri(Map<String, Object?> json, String name) {
+  final value = optionalString(json, name);
+  if (value == null) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) {
+    throw const LtiException(
+      LtiErrorCode.invalidClaims,
+      'Expected an absolute HTTPS URL.',
+    );
+  }
+  return uri;
+}
+
+Map<String, Object?>? optionalObject(Map<String, Object?> json, String name) =>
+    json.containsKey(name) ? jsonObject(json[name]) : null;
 
 String? optionalString(Map<String, Object?> json, String name) {
   if (!json.containsKey(name)) return null;

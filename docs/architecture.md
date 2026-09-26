@@ -38,6 +38,13 @@ no user; names and email addresses are optional. Application user keys should
 include issuer and subject, with tenant isolation applied separately. Resource
 and context keys must include their registration/deployment scope.
 
+Additional audiences in a token must be explicitly configured through
+`additionalTrustedAudiences`; matching `azp` alone does not establish trust.
+Platform, presentation and LIS metadata are typed. Standard roles and context
+types are validated without interpreting them as application permissions.
+Bound OIDC error responses terminate the transaction; raw platform error text is
+not reflected. Authentication failures return HTTP 401 from the Shelf callback.
+
 ## Storage contract
 
 `LtiTransactionStore.save` must reject duplicate state. `consume` must match state,

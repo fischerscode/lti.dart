@@ -1,3 +1,8 @@
+## Unreleased
+
+- Add typed optional Core claims, standard role/context vocabularies and mentor validation.
+- Require explicit trust for additional JWT audiences and handle bound OIDC errors.
+
 ## 0.1.0-dev.1
 
 - Introduce registrations, atomic login transaction contracts and OIDC initiation.
