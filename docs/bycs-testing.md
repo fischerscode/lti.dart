@@ -169,9 +169,9 @@ JWTs, cookies or login hints. The browser still receives only the generic error
 code. Restart the runner after code updates and always start a fresh activity
 launch from ByCS; callback attempts consume the login transaction.
 
-This runner currently supports resource launches only: keep Deep Linking, AGS
-and NRPS disabled in ByCS. It uses in-memory transactions for a single development
-process; restarting invalidates pending logins. Use a test course, not a public
+This runner supports resource launches and a fixed Deep Linking test selection.
+Keep AGS and NRPS disabled in ByCS. It uses in-memory transactions and selection
+sessions for a single development process; restarting invalidates pending logins. Use a test course, not a public
 production deployment. The earlier diagnostic runner remains separate and does
 not feed registrations into this server automatically.
 
@@ -196,3 +196,43 @@ This verifies one resource-launch path through the public HTTPS/SSH setup.
 Deep Linking, ByCS retrieval of tool JWKS, different user roles, embedded-browser
 behavior, AGS and NRPS remain unverified against the live platform. This result
 does not establish complete conformance or application authorization.
+
+## Live Deep Linking test
+
+Restart the integration runner after updating the code, keeping the SSH tunnel
+open. Edit the existing ByCS tool registration:
+
+- Enable **Unterstützt Deep Linking (Content-Item Message)**.
+- Set **Inhalts-URL** to `https://ltitest.schulzeug.eu:55531/activity`.
+- Keep **Umleitungs-URI(s)** as `https://ltitest.schulzeug.eu:55531/lti/launch`.
+- Keep the public keyset at `https://ltitest.schulzeug.eu:55531/lti/jwks`.
+- Keep a new-window launch container initially and leave services disabled.
+
+The content-selection target intentionally matches the existing allowed resource
+URL. The signed message type selects the handler, so separate login and redirect
+URLs are not needed. The selection UI is opened by a verified
+`LtiDeepLinkingRequest`, never by directly navigating to `/activity`.
+
+Create a new course activity using this tool. Use the content-selection action
+(typically **Inhalt auswählen**) in the activity editor. The verified request
+opens the test selection page. Click **Testinhalt hinzufügen**, return to ByCS,
+and save the activity. Open the newly created activity from the course; expect
+`LTI 1.3 resource launch verified.` and
+`Deep Linking test marker present: true`. The marker is a fixed custom parameter,
+not a user or course identifier. The returned item includes no gradebook line item.
+
+Repeat content selection separately and click **Abbrechen**. ByCS should return
+to its editing UI without receiving any new content items. Platform persistence
+and cancellation behavior must be observed in the real browser; local tests do
+not establish live interoperability. A successful return shows ByCS can validate
+the tool signature with its public key (possibly cached), not necessarily that
+it fetched JWKS again during that exact attempt.
+
+The example permits selection only for a present user with a recognized context
+Instructor, ContentDeveloper or Administrator role (including standard subroles).
+That is the example's policy, not an LTI requirement. It stores the verified launch
+server-side for at most ten minutes, uses independent secure HttpOnly cookies for
+parallel selections, checks the POST Origin and CSRF token, bounds form/session
+sizes and consumes each session before signing. If a browser blocks cookies,
+restart in a top-level window. On expiry or server restart, start a new selection
+from ByCS. Production tools need shared session storage and their own authorization.

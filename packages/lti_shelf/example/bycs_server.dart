@@ -8,6 +8,8 @@ import 'package:lti_shelf/lti_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
+import 'deep_linking_selection.dart';
+
 /// Local HTTPS integration runner, not a production application.
 /// Run from the repository root; installation-specific data stays in .local/.
 Future<void> main() async {
@@ -62,7 +64,7 @@ Future<void> main() async {
   );
   stdout.writeln('Public origin: $origin');
   stdout.writeln(
-    'Resource launch verification enabled. Deep Linking and services are not enabled in this runner.',
+    'Resource launches and Deep Linking selection enabled. AGS and NRPS remain disabled.',
   );
   final stopped = Completer<void>();
   void stop(ProcessSignal _) {
@@ -86,17 +88,20 @@ Handler integrationHandler({required LtiTool tool, required Uri origin}) {
     'referrer-policy': 'no-referrer',
     'x-content-type-options': 'nosniff',
   };
+  final selection = DeepLinkingSelection(tool: tool, origin: origin);
   final adapter = LtiShelf(
     tool: tool,
     publicOrigin: origin,
     onProtocolError: (error) =>
         stderr.writeln('LTI ${error.code.name}: ${error.message}'),
+    onDeepLinkingLaunch: selection.begin,
     onResourceLaunch: (request, launch) => Response.ok(
       'LTI 1.3 resource launch verified.\n'
       'Signature, issuer, audience, deployment, state and nonce validated.\n'
       'User present: ${launch.user != null}\n'
       'Context present: ${launch.context != null}\n'
       'Role count: ${launch.roles.length}\n'
+      'Deep Linking test marker present: ${launch.custom['lti_dart_test'] == 'deep-linking-v1'}\n'
       'This is a protocol test, not application authorization.\n',
       headers: headers,
     ),
@@ -116,6 +121,9 @@ Handler integrationHandler({required LtiTool tool, required Uri origin}) {
       );
     }
     try {
+      if ('/$path' == DeepLinkingSelection.path) {
+        return await selection.complete(request);
+      }
       return await adapter.handler(request);
     } catch (_) {
       // Do not include exception details, request URLs, hints or JWTs in logs.

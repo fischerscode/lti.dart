@@ -23,3 +23,7 @@ response signed by `LtiTool.createDeepLinkingResponse`; it renders an escaped
 auto-post form with a manual-submit button. The consuming tool supplies the
 selection UI and protected session. See the repository
 [Deep Linking guide](../../docs/deep-linking.md).
+
+For the WSL/SSH integration setup, `example/bycs_server.dart` provides HTTPS,
+a verified resource result and a browser-bound Deep Linking selection/cancel UI.
+See [ByCS testing](../../docs/bycs-testing.md) for configuration and live checks.

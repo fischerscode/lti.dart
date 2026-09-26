@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add a bounded, browser-bound Deep Linking selection/cancel UI to the HTTPS integration runner.
+
 - Add an optional server-side protocol error observer; keep browser errors generic.
 
 - Dispatch Deep Linking requests and render escaped, CSP-protected POST return forms.
