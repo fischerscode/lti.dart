@@ -1,0 +1,29 @@
+name: lti_workspace
+publish_to: none
+environment:
+  sdk: ^3.13.0
+workspace:
+  - packages/lti
+  - packages/lti_shelf
+dev_dependencies:
+  lints: ^6.1.0
+  melos: ^8.9.0
+melos:
+  sdkPath: .fvm/flutter_sdk
+  command:
+    version:
+      message: 'chore(release): publish packages'
+  scripts:
+    analyze:
+      run: dart analyze --fatal-infos
+    format:
+      run: dart format .
+    format:check:
+      run: dart format --output=none --set-exit-if-changed .
+    test:
+      exec:
+        command: dart test
+        concurrency: 1
+        failFast: true
+      packageFilters:
+        dirExists: test

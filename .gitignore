@@ -1,0 +1,7 @@
+.dart_tool/
+.fvm/
+build/
+coverage/
+*.iml
+.idea/
+.DS_Store

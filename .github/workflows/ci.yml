@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.13.0'
+      - run: dart pub global activate fvm 4.3.1
+      - run: fvm install
+      - run: fvm dart pub get --enforce-lockfile
+      - run: fvm dart run melos run format:check
+      - run: fvm dart run melos run analyze
+      - run: fvm dart run melos run test --no-select
+      - name: Check Conventional Commits
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: fvm dart run tool/check_commits.dart --range "$BASE_SHA..$HEAD_SHA"
