@@ -17,4 +17,9 @@ rejects missing cookies. Use top-level launches when third-party cookies are
 blocked. Application sessions and authorization remain the application's job.
 
 This is a development release; it does not yet implement the complete LTI 1.3 /
-LTI Advantage suite. Only resource launch messages are currently dispatched.
+LTI Advantage suite. Configure `onDeepLinkingLaunch` to receive verified selection
+requests on the same launch route. Use `deepLinkingFormResponse` to return a
+response signed by `LtiTool.createDeepLinkingResponse`; it renders an escaped
+auto-post form with a manual-submit button. The consuming tool supplies the
+selection UI and protected session. See the repository
+[Deep Linking guide](../../docs/deep-linking.md).

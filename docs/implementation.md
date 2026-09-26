@@ -17,7 +17,7 @@ errata decisions, tested behavior and remaining integration obligations.
 | Core optional claims and vocabularies | Implemented | Typed presentation/LIS/platform/mentor data, standard roles/context types; unknown claims retained |
 | Production storage adapters | Pending | Shared SQL/Redis transactions and backend-specific atomicity tests |
 | Tool signing and public JWKS | Implemented | Local JWK/PEM and external signer contract, envelopes, public-only route and staged rotation |
-| Deep Linking 2.0 | Pending | Request validation, accepted types/targets, content items, data echo, signed form response |
+| Deep Linking 2.0 | Implemented; interoperability pending | Verified selection, five content types, negotiation, opaque data echo, signed POST form; see [scope and limitations](deep-linking.md) |
 | OAuth service access | Partial | Client assertion signing implemented; scoped token requests, cache, failures and destination policy pending |
 | AGS 2.0 | Pending | Line item CRUD, score submission, results, scopes, media types and pagination |
 | NRPS 2.0 | Pending | Membership pages, roles/status, filters and optional personal fields |
@@ -32,8 +32,8 @@ errata decisions, tested behavior and remaining integration obligations.
    browser-bound resource launch, Shelf adapter and cryptographic negative tests.
 2. **Core claims and signing (implemented):** normative checklist, optional typed claims,
    role vocabulary checks, signing-key lifecycle and public JWKS endpoint.
-3. **Deep Linking:** verified selection request, protocol-complete response builder
-   and form response; demonstrate round trip against a reference platform.
+3. **Deep Linking (implemented):** verified selection request, response builder
+   and form response; local simulator round trip tested, reference-platform check pending.
 4. **Services:** scoped OAuth client, AGS and NRPS with pagination, transport
    policies and tests for insufficient capabilities and token expiry.
 5. **Interoperability:** complete deployment with ByCS, supported embedded-browser

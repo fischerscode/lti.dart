@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Dispatch Deep Linking requests and render escaped, CSP-protected POST return forms.
 - Expose GET/HEAD public JWKS when a tool signer is configured.
 - Return HTTP 401 for invalid launch authentication and consume bound OIDC errors.
 

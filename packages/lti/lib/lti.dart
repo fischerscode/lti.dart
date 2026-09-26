@@ -26,3 +26,4 @@ export 'src/store.dart'
 export 'src/tool.dart';
 export 'src/vocabularies.dart';
 export 'src/signing.dart';
+export 'src/deep_linking.dart';

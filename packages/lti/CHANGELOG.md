@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Add verified Deep Linking launches, immutable content items and negotiated signed responses.
 - Add local/external RS256 signing, OAuth client assertions and staged public-key rotation.
 - Add typed optional Core claims, standard role/context vocabularies and mentor validation.
 - Require explicit trust for additional JWT audiences and handle bound OIDC errors.

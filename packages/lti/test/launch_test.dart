@@ -181,7 +181,7 @@ void main() {
       platform.complete(
         login,
         claims: platform.claims(login)
-          ..[LtiClaims.messageType] = 'LtiDeepLinkingRequest',
+          ..[LtiClaims.messageType] = 'UnknownLtiRequest',
       ),
       failsWith(LtiErrorCode.unsupportedMessage),
     );

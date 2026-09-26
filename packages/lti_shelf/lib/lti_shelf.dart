@@ -1,8 +1,9 @@
-/// Shelf integration for LTI resource launches.
+/// Shelf integration for LTI resource and Deep Linking launches.
 library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:lti/lti.dart';
 import 'package:shelf/shelf.dart';
@@ -10,6 +11,11 @@ import 'package:shelf/shelf.dart';
 typedef LtiResourceLaunchHandler = FutureOr<Response> Function(
   Request request,
   LtiResourceLaunch launch,
+);
+
+typedef LtiDeepLinkingLaunchHandler = FutureOr<Response> Function(
+  Request request,
+  LtiDeepLinkingLaunch launch,
 );
 
 /// Mount [handler] at the server root. Paths are relative to [publicOrigin].
@@ -23,6 +29,7 @@ final class LtiShelf {
     required this.tool,
     required this.publicOrigin,
     required this.onResourceLaunch,
+    this.onDeepLinkingLaunch,
     this.loginPath = '/lti/login',
     this.launchPath = '/lti/launch',
     this.jwksPath = '/lti/jwks',
@@ -51,6 +58,7 @@ final class LtiShelf {
   final LtiTool tool;
   final Uri publicOrigin;
   final LtiResourceLaunchHandler onResourceLaunch;
+  final LtiDeepLinkingLaunchHandler? onDeepLinkingLaunch;
   final String loginPath;
   final String launchPath;
   final String jwksPath;
@@ -90,7 +98,7 @@ final class LtiShelf {
       return Response(405, headers: {..._headers, 'allow': allowed.join(', ')});
     }
     String? state;
-    LtiResourceLaunch launch;
+    LtiLaunch launch;
     try {
       final parameters = await _parameters(request);
       if (path == loginPath) {
@@ -134,11 +142,17 @@ final class LtiShelf {
       if (authenticationError != null) {
         await tool.completeLoginError(state: state, browserBinding: binding);
       }
-      launch = await tool.completeResourceLaunch(
+      launch = await tool.completeLaunch(
         state: state,
         browserBinding: binding,
         idToken: token!,
       );
+      if (launch is LtiDeepLinkingLaunch && onDeepLinkingLaunch == null) {
+        throw const LtiException(
+          LtiErrorCode.unsupportedMessage,
+          'No selection handler configured.',
+        );
+      }
     } on LtiException catch (error) {
       return Response(
         switch (error.code) {
@@ -165,7 +179,10 @@ final class LtiShelf {
       );
     }
     // Application failures belong to the host's error handling middleware.
-    final response = await onResourceLaunch(request, launch);
+    final response = await switch (launch) {
+      LtiResourceLaunch() => onResourceLaunch(request, launch),
+      LtiDeepLinkingLaunch() => onDeepLinkingLaunch!(request, launch),
+    };
     final headers = Map<String, Object>.from(response.headersAll);
     headers.addAll(_headers);
     headers['set-cookie'] = [
@@ -237,4 +254,32 @@ final class LtiShelf {
     }
     return all.map((key, values) => MapEntry(key, values.single));
   }
+}
+
+/// Auto-post a signed selection to the platform; includes a manual-submit fallback.
+/// Content-item HTML is carried inside the JWT and is never rendered here.
+Response deepLinkingFormResponse(LtiDeepLinkingResponse message) {
+  final random = Random.secure();
+  final nonce = base64Url.encode(List.generate(24, (_) => random.nextInt(256)));
+  const escape = HtmlEscape();
+  final action = escape.convert(message.returnUrl.toString());
+  final jwt = escape.convert(message.jwt);
+  return Response.ok(
+    '''<!doctype html><html lang="en"><meta charset="utf-8">
+<title>Return to learning platform</title><body>
+<form id="lti-return" method="post" action="$action">
+<input type="hidden" name="JWT" value="$jwt">
+<button type="submit">Return to learning platform</button></form>
+<script nonce="$nonce">document.getElementById('lti-return').submit();</script>
+</body></html>''',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'pragma': 'no-cache',
+      'referrer-policy': 'no-referrer',
+      'x-content-type-options': 'nosniff',
+      'content-security-policy':
+          "default-src 'none'; script-src 'nonce-$nonce'; base-uri 'none'; form-action https:",
+    },
+  );
 }
