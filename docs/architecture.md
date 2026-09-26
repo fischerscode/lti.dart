@@ -74,13 +74,18 @@ request timeouts. A failed launch consumes its correctly bound transaction;
 retry by starting a fresh platform launch. Errors returned to the browser omit
 tokens, claims and internal exception details.
 
+## Signing
+
+An optional `LtiTool.signer` owns outgoing JWT construction. Its key provider
+exposes signing operations separately from typed public keys. The Shelf JWKS
+route serializes only the latter. See [signing and rotation](signing.md).
+
 ## Next API increments
 
-- Tool signing-key provider and public JWKS response; key rotation without
-  exposing private keys through the adapter.
 - Dedicated verified deep-linking request type and signed response builder;
   application code owns the content selection interface.
-- Scoped OAuth token provider shared by AGS and NRPS clients, keyed by
+- Scoped OAuth token provider using the implemented client-assertion signer,
+  shared by AGS and NRPS clients, keyed by
   registration and requested scopes, with token refresh and bounded caching.
 - Typed service capabilities from verified claims. Service clients must validate
   destination policy and pagination URLs before forwarding bearer tokens.

@@ -27,7 +27,8 @@ not a certification or a claim that all LTI Advantage services are implemented.
 | Security 5.1.3: rejected authentication | Shelf returns 401 for invalid tokens/claims; OIDC errors consume bound transactions without exposing descriptions |
 | Security 6.3–6.4: incoming keys | Provisioned JWKS URL, `kid`, bounded cache, overlapping-key rotation supported; `jwks_test.dart` |
 | Core 6 / Security 4.1: services | Pending scoped OAuth client, AGS and NRPS; no service access attempted yet |
-| Security 5.2 / 6: outgoing signing | Next implementation block: signing provider, public JWKS and rotation |
+| Security 5.2 / 6: outgoing signing | RS256 envelopes, typed public JWKS and staged key rotation; `signing_test.dart`, `jwks_route_test.dart` |
+| Core 6.2 / Security 4.1.1: client assertions | Client ID as issuer/subject, provisioned audience, bounded timestamps, unique jti and optional deployment; token HTTP client still pending |
 
 ## Errata decisions
 

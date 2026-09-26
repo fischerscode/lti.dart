@@ -5,6 +5,7 @@ import 'errors.dart';
 import 'jwks.dart';
 import 'models.dart';
 import 'store.dart';
+import 'signing.dart';
 import 'vocabularies.dart';
 
 /// Orchestrates login and validation without depending on a web framework.
@@ -13,6 +14,7 @@ final class LtiTool {
     required this.registrations,
     required this.transactions,
     required this.tokenVerifier,
+    this.signer,
     DateTime Function()? clock,
     this.loginLifetime = const Duration(minutes: 5),
     this.clockTolerance = const Duration(seconds: 30),
@@ -27,6 +29,7 @@ final class LtiTool {
   final LtiRegistrationStore registrations;
   final LtiTransactionStore transactions;
   final LtiTokenVerifier tokenVerifier;
+  final LtiJwtSigner? signer;
   final DateTime Function() _clock;
   final Duration loginLifetime;
   final Duration clockTolerance;

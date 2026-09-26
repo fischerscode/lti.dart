@@ -25,3 +25,4 @@ export 'src/store.dart'
         MemoryLtiTransactionStore;
 export 'src/tool.dart';
 export 'src/vocabularies.dart';
+export 'src/signing.dart';

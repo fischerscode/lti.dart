@@ -5,7 +5,9 @@ Framework-independent, server-side LTI tool library for Dart.
 This development version provides manual registrations, OIDC login initiation,
 RS256/JWKS verification, replay-protected resource launches and typed launch data.
 It is **not yet a complete LTI 1.3 implementation**. Deep Linking, AGS, NRPS,
-outgoing tool signatures and dynamic registration are planned.
+and dynamic registration are planned. Tool signing, OAuth client assertions and
+public-key rotation are available through `LtiJwtSigner`; access-token requests
+and message-specific Deep Linking response validation remain pending.
 
 Create `LtiTool` with a registration store, transaction store and
 `RemoteJwksVerifier`. Call `beginLogin`, retain the returned browser binding in

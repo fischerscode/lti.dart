@@ -11,13 +11,15 @@ protocol library and HTTP adapters, not a learning application or an LMS.
 ## Status
 
 **Early development — not yet a complete or certified LTI 1.3 implementation.**
-The first milestone supports manually registered platforms, OIDC login and
-RS256-verified resource launches, including anonymous launches. Deep Linking,
-AGS, NRPS, outgoing tool signatures and dynamic registration are not implemented.
+The implementation supports manually registered platforms, OIDC login,
+RS256-verified resource launches, typed Core claims, tool signing and public
+JWKS with rotation. Deep Linking, AGS, NRPS and dynamic registration are not yet
+implemented. OAuth assertions are available; the access-token client is pending.
 ByCS interoperability has not yet been tested against a live registration.
 
 See [architecture and security contracts](docs/architecture.md) and the
 [implementation matrix](docs/implementation.md) for the remaining scope.
+See [tool signing](docs/signing.md) for private-key integration and rotation.
 
 ## Development
 

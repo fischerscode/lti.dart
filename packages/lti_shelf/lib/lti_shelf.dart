@@ -25,6 +25,8 @@ final class LtiShelf {
     required this.onResourceLaunch,
     this.loginPath = '/lti/login',
     this.launchPath = '/lti/launch',
+    this.jwksPath = '/lti/jwks',
+    this.jwksCacheLifetime = const Duration(minutes: 5),
     this.maxRequestBytes = 131072,
   }) {
     if (publicOrigin.scheme != 'https' ||
@@ -33,13 +35,14 @@ final class LtiShelf {
         publicOrigin.hasQuery ||
         publicOrigin.hasFragment ||
         (publicOrigin.path.isNotEmpty && publicOrigin.path != '/') ||
-        loginPath == launchPath ||
+        {loginPath, launchPath, jwksPath}.length != 3 ||
+        jwksCacheLifetime < Duration.zero ||
         maxRequestBytes <= 0) {
       throw ArgumentError(
         'An HTTPS origin, distinct paths and positive body limit are required.',
       );
     }
-    for (final path in [loginPath, launchPath]) {
+    for (final path in [loginPath, launchPath, jwksPath]) {
       if (!RegExp(r'^/[a-zA-Z0-9/_-]+$').hasMatch(path)) {
         throw ArgumentError('Route paths must be absolute, plain URL paths.');
       }
@@ -50,6 +53,8 @@ final class LtiShelf {
   final LtiResourceLaunchHandler onResourceLaunch;
   final String loginPath;
   final String launchPath;
+  final String jwksPath;
+  final Duration jwksCacheLifetime;
   final int maxRequestBytes;
 
   static const _headers = {
@@ -62,6 +67,21 @@ final class LtiShelf {
 
   Future<Response> _handle(Request request) async {
     final path = '/${request.url.path}';
+    if (path == jwksPath && tool.signer != null) {
+      if (request.method != 'GET' && request.method != 'HEAD') {
+        return Response(405, headers: {..._headers, 'allow': 'GET, HEAD'});
+      }
+      final body = jsonEncode(await tool.signer!.publicJwks());
+      return Response.ok(
+        request.method == 'HEAD' ? null : body,
+        headers: {
+          'content-type': 'application/jwk-set+json',
+          'cache-control': 'public, max-age=${jwksCacheLifetime.inSeconds}',
+          'content-length': utf8.encode(body).length.toString(),
+          'x-content-type-options': 'nosniff',
+        },
+      );
+    }
     if (path != loginPath && path != launchPath) {
       return Response.notFound('Not found');
     }

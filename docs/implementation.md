@@ -16,9 +16,9 @@ errata decisions, tested behavior and remaining integration obligations.
 | HTTP adapter | Implemented | POST callback, form limits, duplicate rejection, cookie preservation |
 | Core optional claims and vocabularies | Implemented | Typed presentation/LIS/platform/mentor data, standard roles/context types; unknown claims retained |
 | Production storage adapters | Pending | Shared SQL/Redis transactions and backend-specific atomicity tests |
-| Tool signing and public JWKS | Pending | Signing interface, outgoing signatures and rotation |
+| Tool signing and public JWKS | Implemented | Local JWK/PEM and external signer contract, envelopes, public-only route and staged rotation |
 | Deep Linking 2.0 | Pending | Request validation, accepted types/targets, content items, data echo, signed form response |
-| OAuth service access | Pending | Client assertion signing, scoped token requests, cache, failures and destination policy |
+| OAuth service access | Partial | Client assertion signing implemented; scoped token requests, cache, failures and destination policy pending |
 | AGS 2.0 | Pending | Line item CRUD, score submission, results, scopes, media types and pagination |
 | NRPS 2.0 | Pending | Membership pages, roles/status, filters and optional personal fields |
 | Cookie-restricted iframe flow | Pending | Platform-supported browser storage, integration tests in real browsers |
@@ -28,9 +28,9 @@ errata decisions, tested behavior and remaining integration obligations.
 
 ## Milestones
 
-1. **Launch foundation (current):** reproducible workspace, trusted registration,
+1. **Launch foundation (implemented):** reproducible workspace, trusted registration,
    browser-bound resource launch, Shelf adapter and cryptographic negative tests.
-2. **Core completion and signing:** normative checklist, optional typed claims,
+2. **Core claims and signing (implemented):** normative checklist, optional typed claims,
    role vocabulary checks, signing-key lifecycle and public JWKS endpoint.
 3. **Deep Linking:** verified selection request, protocol-complete response builder
    and form response; demonstrate round trip against a reference platform.

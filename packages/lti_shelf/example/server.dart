@@ -14,6 +14,17 @@ Future<void> main() async {
 
   final origin = Uri.parse(env('TOOL_ORIGIN'));
   final client = http.Client();
+  final privateKeyPath = Platform.environment['LTI_PRIVATE_KEY_FILE'];
+  final signer = privateKeyPath == null
+      ? null
+      : LtiJwtSigner(
+          keys: MemoryLtiSigningKeyProvider(
+            RsaLtiSigningKey.fromPem(
+              await File(privateKeyPath).readAsString(),
+              keyId: env('LTI_KEY_ID'),
+            ),
+          ),
+        );
   final registration = LtiRegistration(
     issuer: env('LTI_ISSUER'),
     clientId: env('LTI_CLIENT_ID'),
@@ -28,6 +39,7 @@ Future<void> main() async {
       registrations: MemoryLtiRegistrationStore([registration]),
       transactions: MemoryLtiTransactionStore(),
       tokenVerifier: RemoteJwksVerifier(client: client),
+      signer: signer,
     ),
     publicOrigin: origin,
     onResourceLaunch: (request, launch) {

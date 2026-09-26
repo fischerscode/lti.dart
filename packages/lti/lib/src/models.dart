@@ -29,6 +29,7 @@ final class LtiRegistration {
     required Set<String> targetLinkUris,
     Set<String> additionalTrustedAudiences = const {},
     this.tokenEndpoint,
+    this.authorizationServerAudience,
   }) : deploymentIds = Set.unmodifiable(deploymentIds),
        additionalTrustedAudiences = Set.unmodifiable(
          additionalTrustedAudiences,
@@ -54,6 +55,7 @@ final class LtiRegistration {
     if (clientId.isEmpty ||
         deploymentIds.isEmpty ||
         targetLinkUris.isEmpty ||
+        authorizationServerAudience == '' ||
         deploymentIds.any((id) => !isLtiIdentifier(id)) ||
         additionalTrustedAudiences.any((id) => id.isEmpty)) {
       throw ArgumentError(
@@ -69,6 +71,9 @@ final class LtiRegistration {
   final Uri jwksUri;
   final Uri redirectUri;
   final Uri? tokenEndpoint;
+
+  /// Exact out-of-band assertion audience; defaults to [tokenEndpoint] if absent.
+  final String? authorizationServerAudience;
   final Set<String> deploymentIds;
 
   /// Exact allowed resource URLs. Query parameters are part of the match.
