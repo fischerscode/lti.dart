@@ -70,8 +70,9 @@ fvm dart run tool/https_probe.dart
 ```
 
 This binds only WSL loopback on port 8443 and serves a plain connectivity message
-at `/` and `/health`. Other paths return 404; only GET/HEAD are accepted. It does
-not implement LTI or accept launch tokens. Stop with Ctrl+C before starting the
+at `/` and `/health`. The health routes accept GET/HEAD. `/lti/login` additionally accepts GET and
+form POST for registration diagnosis (see below); other paths return 404.
+It does not authenticate LTI launches. Stop with Ctrl+C before starting the
 actual integration server on the same port.
 
 Verify the certificate and local TLS listener without bypassing validation:
@@ -89,6 +90,23 @@ curl --noproxy '*' https://ltitest.schulzeug.eu:55531/health
 
 A passing request proves HTTPS reachability from that client. ByCS's own
 outbound-port policy still needs verification during the JWKS integration.
+
+## Read registration metadata from a ByCS launch
+
+If ByCS does not expose registration details in its course-tool menu, restart
+this probe and create a course activity using the previously registered tool.
+Open that activity from ByCS. Its configured login URL must be
+`https://ltitest.schulzeug.eu:55531/lti/login`.
+
+The diagnostic page displays only `iss`, `client_id` and `lti_deployment_id`
+when supplied. It neither stores request data nor logs hints, JWTs or cookies.
+Inputs are bounded and duplicate parameters rejected. These are **unsigned,
+unverified login parameters**, not proof of a successful launch and not an
+automatically trusted registration. Record the values from your own deliberate
+ByCS test, validate the platform endpoints, and configure an explicit allowlist
+before enabling actual authentication. A missing parameter remains missing; the
+probe does not guess identifiers. The response intentionally stops before the
+OIDC redirect.
 
 ## Next integration step
 

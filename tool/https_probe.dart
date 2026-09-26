@@ -1,6 +1,8 @@
 import 'dart:io';
 
-/// HTTPS connectivity probe for a reverse SSH tunnel. No LTI data is processed.
+import 'lti_login_diagnostic.dart';
+
+/// HTTPS probe and unverified LTI login metadata diagnostic for development.
 /// Run from WSL after copying the certificate into .local/bycs/tls.
 Future<void> main() async {
   final certificate =
@@ -27,7 +29,7 @@ Future<void> main() async {
   stdout.writeln('HTTPS probe listening on WSL 127.0.0.1:${server.port}.');
   stdout.writeln('Public URL: https://ltitest.schulzeug.eu:55531/health');
   stdout.writeln(
-    'This probe checks connectivity only; LTI routes are not active.',
+    'Login diagnosis: /lti/login. Launch verification is not active.',
   );
   final interrupt = ProcessSignal.sigint.watch().listen((_) {
     server.close(force: true);
@@ -41,7 +43,9 @@ Future<void> main() async {
         ..contentType = ContentType.text
         ..set(HttpHeaders.cacheControlHeader, 'no-store')
         ..set('x-content-type-options', 'nosniff');
-      if (request.method != 'GET' && request.method != 'HEAD') {
+      if (request.uri.path == '/lti/login') {
+        await handleLoginDiagnostic(request);
+      } else if (request.method != 'GET' && request.method != 'HEAD') {
         request.response
           ..statusCode = HttpStatus.methodNotAllowed
           ..headers.set(HttpHeaders.allowHeader, 'GET, HEAD');
