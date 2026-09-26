@@ -5,3 +5,6 @@ coverage/
 *.iml
 .idea/
 .DS_Store
+
+# Local integration configuration, TLS certificates and private keys.
+.local/
