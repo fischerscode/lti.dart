@@ -108,11 +108,63 @@ before enabling actual authentication. A missing parameter remains missing; the
 probe does not guess identifiers. The response intentionally stops before the
 OIDC redirect.
 
-## Next integration step
+## Start the resource-launch integration server
 
-After connectivity succeeds, configure the actual LTI adapter with ByCS's issuer,
-client ID, deployment ID, authorization endpoint and platform JWKS URL. Its
-public origin is `https://ltitest.schulzeug.eu:55531`; include the port in all
-registered URLs. Planned paths are `/lti/login`, `/lti/launch`, `/lti/jwks` and
-`/activity`. The existing Shelf example still requires this registration and runs
-HTTP behind a proxy; it is not the TLS probe above.
+The runner `packages/lti_shelf/example/bycs_server.dart` serves HTTPS directly
+in WSL on port 8443. It reads `.local/bycs/registration.json` (override with
+`LTI_CONFIG_FILE`) with these fields:
+
+```json
+{
+  "tool_origin": "https://ltitest.schulzeug.eu:55531",
+  "issuer": "https://lernplattform.bycs.de",
+  "client_id": "YOUR_CLIENT_ID",
+  "deployment_id": "YOUR_DEPLOYMENT_ID",
+  "authentication_endpoint": "https://lernplattform.bycs.de/mod/lti/auth.php",
+  "jwks_uri": "https://lernplattform.bycs.de/mod/lti/certs.php",
+  "token_endpoint": "https://lernplattform.bycs.de/mod/lti/token.php",
+  "signing_key_file": ".local/bycs/signing-key.pem",
+  "signing_key_id": "YOUR_UNIQUE_KEY_ID",
+  "tls_certificate_file": ".local/bycs/tls/fullchain.pem",
+  "tls_private_key_file": ".local/bycs/tls/privkey.pem"
+}
+```
+
+Use the actual registration values from your deliberate platform setup. The
+ByCS JWKS endpoint was observed returning an RSA key over HTTPS; auth and token
+URLs responded but the complete ByCS launch still needs a live browser test.
+The token endpoint is configured for future use; this runner requests no service
+tokens. Registration data stays local, outside Git.
+
+Generate a separate RSA signing key once, if one does not already exist:
+
+```sh
+(umask 077; test -e .local/bycs/signing-key.pem || \
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+    -out .local/bycs/signing-key.pem)
+```
+
+Keep the SSH tunnel running. Stop the probe with Ctrl+C and run from the root:
+
+```sh
+fvm dart run packages/lti_shelf/example/bycs_server.dart
+```
+
+Public paths:
+
+- `/health`: server readiness; not evidence of a successful LTI launch.
+- `/lti/jwks`: public LTI signing keys; never private or TLS keys.
+- `/lti/login`: registered OIDC login initiation, no longer a diagnostic echo.
+- `/lti/launch`: signed resource callback, verified using the library.
+- `/activity`: registered resource target; direct access only explains how to launch.
+
+Open the activity from ByCS in a new window. Success displays
+`LTI 1.3 resource launch verified.` without names, emails, user identifiers, course
+identifiers or tokens. Failures display the library's safe error code. These
+results establish protocol verification, not authorization for an application.
+
+This runner currently supports resource launches only: keep Deep Linking, AGS
+and NRPS disabled in ByCS. It uses in-memory transactions for a single development
+process; restarting invalidates pending logins. Use a test course, not a public
+production deployment. The earlier diagnostic runner remains separate and does
+not feed registrations into this server automatically.
