@@ -15,7 +15,9 @@ The implementation supports manually registered platforms, OIDC login,
 RS256-verified resource launches, typed Core claims, tool signing and public
 JWKS with rotation and Deep Linking selection/return messages. AGS, NRPS and
 dynamic registration are not yet implemented. OAuth assertions are available; the access-token client is pending.
-ByCS interoperability has not yet been tested against a live registration.
+A first live ByCS resource launch was reported successful on 2026-09-27;
+Deep Linking, service access and broader browser/role coverage remain unverified.
+See the [ByCS integration record](docs/bycs-testing.md).
 
 See [architecture and security contracts](docs/architecture.md) and the
 [implementation matrix](docs/implementation.md) for the remaining scope.

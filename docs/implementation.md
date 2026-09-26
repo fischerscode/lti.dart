@@ -23,7 +23,7 @@ errata decisions, tested behavior and remaining integration obligations.
 | NRPS 2.0 | Pending | Membership pages, roles/status, filters and optional personal fields |
 | Cookie-restricted iframe flow | Pending | Platform-supported browser storage, integration tests in real browsers |
 | Dynamic Registration | Separate extension | Decide profile and requirements after manual ByCS integration |
-| ByCS interoperability | Pending | Real registration, launch in course, privacy settings, enabled capabilities |
+| ByCS interoperability | First resource launch verified | Operator-reported success on 2026-09-27; Deep Linking, platform JWKS retrieval, roles, embedded browsers and services pending; see [integration record](bycs-testing.md) |
 | Formal certification | Out of initial scope | Separate certification decision and test process |
 
 ## Milestones

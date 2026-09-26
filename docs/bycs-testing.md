@@ -183,5 +183,16 @@ The next failure was the context vocabulary check. Moodle 4.5's
 [launch builder](https://github.com/moodle/moodle/blob/MOODLE_405_STABLE/mod/lti/locallib.php)
 sends short context names such as `CourseSection`. The library now normalizes
 only the aliases explicitly listed in Core Appendix A.1. This is a targeted
-compatibility correction; the actual ByCS payload was not stored or inspected,
-and a fresh live launch is required to confirm it resolves that failure.
+compatibility correction; the actual ByCS payload was not stored or inspected.
+
+On 2026-09-27 the operator reported a successful fresh resource launch from the
+real ByCS course after this correction (code commit `c9e4faf`). The integration
+runner displayed `LTI 1.3 resource launch verified.` and confirmed signature,
+issuer, audience, deployment, state and nonce validation. It reported a present
+user, a present context and one role. This is operator-reported live integration
+evidence, not a replayable captured-token test; no personal claims were recorded.
+
+This verifies one resource-launch path through the public HTTPS/SSH setup.
+Deep Linking, ByCS retrieval of tool JWKS, different user roles, embedded-browser
+behavior, AGS and NRPS remain unverified against the live platform. This result
+does not establish complete conformance or application authorization.
