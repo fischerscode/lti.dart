@@ -163,6 +163,12 @@ Open the activity from ByCS in a new window. Success displays
 identifiers or tokens. Failures display the library's safe error code. These
 results establish protocol verification, not authorization for an application.
 
+On a rejection, the runner prints `LTI <code>: <reason>` in the WSL terminal.
+The reason identifies the failed check or field without printing claim values,
+JWTs, cookies or login hints. The browser still receives only the generic error
+code. Restart the runner after code updates and always start a fresh activity
+launch from ByCS; callback attempts consume the login transaction.
+
 This runner currently supports resource launches only: keep Deep Linking, AGS
 and NRPS disabled in ByCS. It uses in-memory transactions for a single development
 process; restarting invalidates pending logins. Use a test course, not a public

@@ -241,17 +241,17 @@ final class LtiTool {
     LtiLoginTransaction transaction,
     DateTime now,
   ) {
-    Never invalid() => throw const LtiException(
-      LtiErrorCode.invalidClaims,
-      'Launch claims do not match the login.',
-    );
-    if (!transaction.expiresAt.isAfter(now) ||
-        claims['iss'] != registration.issuer ||
-        claims['nonce'] != transaction.nonce) {
-      invalid();
+    Never invalid(String reason) =>
+        throw LtiException(LtiErrorCode.invalidClaims, reason);
+    if (!transaction.expiresAt.isAfter(now)) {
+      invalid('Login transaction expired during verification.');
     }
+    if (claims['iss'] != registration.issuer) invalid('Issuer mismatch.');
+    if (claims['nonce'] != transaction.nonce) invalid('Nonce mismatch.');
     final audience = claims['aud'];
-    final audiences = audience is String ? [audience] : stringList(audience);
+    final audiences = audience is String
+        ? [audience]
+        : stringList(audience, field: 'aud');
     if (!audiences.contains(registration.clientId) ||
         audiences.any(
           (audience) =>
@@ -260,11 +260,13 @@ final class LtiTool {
         ) ||
         (audiences.length > 1 && claims['azp'] != registration.clientId) ||
         (claims.containsKey('azp') && claims['azp'] != registration.clientId)) {
-      invalid();
+      invalid('Audience or authorized party mismatch.');
     }
     num numericDate(String name) {
       final value = claims[name];
-      if (value is! num || !value.isFinite) invalid();
+      if (value is! num || !value.isFinite) {
+        invalid('Invalid numeric date: $name.');
+      }
       return value;
     }
 
@@ -272,17 +274,22 @@ final class LtiTool {
     final tolerance = clockTolerance.inMilliseconds / 1000;
     final issued = numericDate('iat');
     final expires = numericDate('exp');
-    if (expires <= seconds - tolerance ||
-        issued > seconds + tolerance ||
-        issued < seconds - maxTokenAge.inMilliseconds / 1000 - tolerance ||
-        issued <
-            transaction.createdAt.millisecondsSinceEpoch / 1000 - tolerance ||
-        expires <= issued ||
-        (claims.containsKey('nbf') &&
-            numericDate('nbf') > seconds + tolerance)) {
-      invalid();
+    if (expires <= seconds - tolerance) invalid('Token expired.');
+    if (issued > seconds + tolerance) invalid('Token issued in the future.');
+    if (issued < seconds - maxTokenAge.inMilliseconds / 1000 - tolerance) {
+      invalid('Token exceeds maximum age.');
     }
-    if (claims[LtiClaims.version] != '1.3.0') invalid();
+    if (issued <
+        transaction.createdAt.millisecondsSinceEpoch / 1000 - tolerance) {
+      invalid('Token predates the login transaction.');
+    }
+    if (expires <= issued) invalid('Token expiry is not after issuance.');
+    if (claims.containsKey('nbf') && numericDate('nbf') > seconds + tolerance) {
+      invalid('Token is not yet valid.');
+    }
+    if (claims[LtiClaims.version] != '1.3.0') {
+      invalid('Unsupported LTI version.');
+    }
     if (!const [
       'LtiResourceLinkRequest',
       'LtiDeepLinkingRequest',
@@ -293,14 +300,20 @@ final class LtiTool {
       );
     }
     final deployment = requiredString(claims, LtiClaims.deploymentId);
-    if (!registration.deploymentIds.contains(deployment) ||
-        (transaction.deploymentId != null &&
-            transaction.deploymentId != deployment) ||
-        ((claims[LtiClaims.messageType] == 'LtiResourceLinkRequest' ||
-                claims.containsKey(LtiClaims.targetLinkUri)) &&
-            claims[LtiClaims.targetLinkUri] != transaction.targetLinkUri) ||
-        !registration.targetLinkUris.contains(transaction.targetLinkUri)) {
-      invalid();
+    if (!registration.deploymentIds.contains(deployment)) {
+      invalid('Deployment is not registered.');
+    }
+    if (transaction.deploymentId != null &&
+        transaction.deploymentId != deployment) {
+      invalid('Deployment differs from login hint.');
+    }
+    if ((claims[LtiClaims.messageType] == 'LtiResourceLinkRequest' ||
+            claims.containsKey(LtiClaims.targetLinkUri)) &&
+        claims[LtiClaims.targetLinkUri] != transaction.targetLinkUri) {
+      invalid('Target link URI differs from login target or is missing.');
+    }
+    if (!registration.targetLinkUris.contains(transaction.targetLinkUri)) {
+      invalid('Login target is no longer registered.');
     }
   }
 }
@@ -332,7 +345,7 @@ sealed class LtiLaunch {
             locale: optionalString(claims, 'locale'),
           );
     roles = rolesRequired || claims.containsKey(LtiClaims.roles)
-        ? stringList(claims[LtiClaims.roles])
+        ? stringList(claims[LtiClaims.roles], field: LtiClaims.roles)
         : const [];
     if (roles.any((role) => !(Uri.tryParse(role)?.hasScheme ?? false)) ||
         (roles.isNotEmpty && !roles.any(LtiRoles.isStandard))) {
@@ -357,7 +370,10 @@ sealed class LtiLaunch {
     final lisData = optionalObject(claims, LtiClaims.lis);
     lis = lisData == null ? null : LtiLis.fromJson(lisData);
     mentorSubjectIds = claims.containsKey(LtiClaims.roleScopeMentor)
-        ? stringList(claims[LtiClaims.roleScopeMentor])
+        ? stringList(
+            claims[LtiClaims.roleScopeMentor],
+            field: LtiClaims.roleScopeMentor,
+          )
         : const [];
     if (mentorSubjectIds.any((id) => !isLtiIdentifier(id)) ||
         (mentorSubjectIds.isNotEmpty && !roles.contains(LtiRoles.mentor))) {
@@ -403,7 +419,7 @@ sealed class LtiLaunch {
       );
     }
     final types = data.containsKey('type')
-        ? stringList(data['type'])
+        ? stringList(data['type'], field: 'context.type')
         : const <String>[];
     if (data.containsKey('type') &&
         (!types.any(LtiContextTypes.standard.contains) ||
@@ -426,7 +442,10 @@ sealed class LtiLaunch {
 final class LtiResourceLaunch extends LtiLaunch {
   LtiResourceLaunch._(super.registration, super.data, super.target)
     : super._(rolesRequired: true) {
-    final link = jsonObject(claims[LtiClaims.resourceLink]);
+    final link = jsonObject(
+      claims[LtiClaims.resourceLink],
+      field: LtiClaims.resourceLink,
+    );
     final id = requiredString(link, 'id');
     if (!isLtiIdentifier(id)) {
       throw const LtiException(

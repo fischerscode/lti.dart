@@ -89,6 +89,8 @@ Handler integrationHandler({required LtiTool tool, required Uri origin}) {
   final adapter = LtiShelf(
     tool: tool,
     publicOrigin: origin,
+    onProtocolError: (error) =>
+        stderr.writeln('LTI ${error.code.name}: ${error.message}'),
     onResourceLaunch: (request, launch) => Response.ok(
       'LTI 1.3 resource launch verified.\n'
       'Signature, issuer, audience, deployment, state and nonce validated.\n'

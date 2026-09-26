@@ -258,9 +258,9 @@ bool isLtiIdentifier(String value) =>
 String requiredString(Map<String, Object?> json, String name) {
   final value = json[name];
   if (value is! String || value.isEmpty) {
-    throw const LtiException(
+    throw LtiException(
       LtiErrorCode.invalidClaims,
-      'Missing or invalid string field.',
+      'Missing or invalid string field: $name.',
     );
   }
   return value;
@@ -269,9 +269,9 @@ String requiredString(Map<String, Object?> json, String name) {
 String requiredIdentifier(Map<String, Object?> json, String name) {
   final value = requiredString(json, name);
   if (!isLtiIdentifier(value)) {
-    throw const LtiException(
+    throw LtiException(
       LtiErrorCode.invalidClaims,
-      'Invalid LTI identifier.',
+      'Invalid LTI identifier: $name.',
     );
   }
   return value;
@@ -285,44 +285,44 @@ Uri? optionalHttpsUri(Map<String, Object?> json, String name) {
       uri.scheme != 'https' ||
       uri.host.isEmpty ||
       uri.userInfo.isNotEmpty) {
-    throw const LtiException(
+    throw LtiException(
       LtiErrorCode.invalidClaims,
-      'Expected an absolute HTTPS URL.',
+      'Expected an absolute HTTPS URL in field: $name.',
     );
   }
   return uri;
 }
 
 Map<String, Object?>? optionalObject(Map<String, Object?> json, String name) =>
-    json.containsKey(name) ? jsonObject(json[name]) : null;
+    json.containsKey(name) ? jsonObject(json[name], field: name) : null;
 
 String? optionalString(Map<String, Object?> json, String name) {
   if (!json.containsKey(name)) return null;
   final value = json[name];
   if (value is! String) {
-    throw const LtiException(
+    throw LtiException(
       LtiErrorCode.invalidClaims,
-      'Invalid optional string field.',
+      'Invalid optional string field: $name.',
     );
   }
   return value;
 }
 
-Map<String, Object?> jsonObject(Object? value) {
+Map<String, Object?> jsonObject(Object? value, {String field = 'object'}) {
   if (value is! Map<String, Object?>) {
-    throw const LtiException(
+    throw LtiException(
       LtiErrorCode.invalidClaims,
-      'Expected a JSON object.',
+      'Expected a JSON object in field: $field.',
     );
   }
   return value;
 }
 
-List<String> stringList(Object? value) {
+List<String> stringList(Object? value, {String field = 'array'}) {
   if (value is! List || value.any((Object? entry) => entry is! String)) {
-    throw const LtiException(
+    throw LtiException(
       LtiErrorCode.invalidClaims,
-      'Expected an array of strings.',
+      'Expected an array of strings in field: $field.',
     );
   }
   return List<String>.unmodifiable(value.cast<String>());

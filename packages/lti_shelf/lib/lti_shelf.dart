@@ -30,6 +30,7 @@ final class LtiShelf {
     required this.publicOrigin,
     required this.onResourceLaunch,
     this.onDeepLinkingLaunch,
+    this.onProtocolError,
     this.loginPath = '/lti/login',
     this.launchPath = '/lti/launch',
     this.jwksPath = '/lti/jwks',
@@ -59,6 +60,11 @@ final class LtiShelf {
   final Uri publicOrigin;
   final LtiResourceLaunchHandler onResourceLaunch;
   final LtiDeepLinkingLaunchHandler? onDeepLinkingLaunch;
+
+  /// Optional server-side diagnostic observer. The HTTP response stays generic.
+  /// Do not throw from this callback. Custom verifiers/stores must also ensure
+  /// their exception messages contain no tokens or personal data.
+  final void Function(LtiException error)? onProtocolError;
   final String loginPath;
   final String launchPath;
   final String jwksPath;
@@ -154,6 +160,7 @@ final class LtiShelf {
         );
       }
     } on LtiException catch (error) {
+      onProtocolError?.call(error);
       return Response(
         switch (error.code) {
           LtiErrorCode.platformUnavailable => 502,
