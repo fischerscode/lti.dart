@@ -17,13 +17,13 @@ errata decisions, tested behavior and remaining integration obligations.
 | Core optional claims and vocabularies | Implemented | Typed presentation/LIS/platform/mentor data, standard roles/context types; unknown claims retained |
 | Production storage adapters | Pending | Shared SQL/Redis transactions and backend-specific atomicity tests |
 | Tool signing and public JWKS | Implemented | Local JWK/PEM and external signer contract, envelopes, public-only route and staged rotation |
-| Deep Linking 2.0 | Implemented; interoperability pending | Verified selection, five content types, negotiation, opaque data echo, signed POST form; see [scope and limitations](deep-linking.md) |
+| Deep Linking 2.0 | Implemented; ByCS resource selection round trip reported | Verified selection, five content types, negotiation, opaque data echo, signed POST form; see [scope and limitations](deep-linking.md) |
 | OAuth service access | Partial | Client assertion signing implemented; scoped token requests, cache, failures and destination policy pending |
 | AGS 2.0 | Pending | Line item CRUD, score submission, results, scopes, media types and pagination |
 | NRPS 2.0 | Pending | Membership pages, roles/status, filters and optional personal fields |
-| Cookie-restricted iframe flow | Pending | Platform-supported browser storage, integration tests in real browsers |
+| Cookie-restricted iframe flow | Partial | Opt-in partitioned cookies; one ByCS selection iframe flow reported successful; browser/policy coverage pending |
 | Dynamic Registration | Separate extension | Decide profile and requirements after manual ByCS integration |
-| ByCS interoperability | First resource launch verified | Operator-reported success on 2026-09-27; Deep Linking, platform JWKS retrieval, roles, embedded browsers and services pending; see [integration record](bycs-testing.md) |
+| ByCS interoperability | Resource launch and Deep Linking round trip verified | Operator-reported success on 2026-09-27 using a directly configured RSA public key; cancellation, platform JWKS retrieval, broader role/browser coverage and services pending; see [integration record](bycs-testing.md) |
 | Formal certification | Out of initial scope | Separate certification decision and test process |
 
 ## Milestones
@@ -33,7 +33,9 @@ errata decisions, tested behavior and remaining integration obligations.
 2. **Core claims and signing (implemented):** normative checklist, optional typed claims,
    role vocabulary checks, signing-key lifecycle and public JWKS endpoint.
 3. **Deep Linking (implemented):** verified selection request, response builder
-   and form response; local simulator round trip tested, reference-platform check pending.
+   and form response; local simulator tested and ByCS resource selection round trip
+   reported successful with a directly configured RSA public key. Cancellation
+   and other content types remain pending on the live platform.
 4. **Services:** scoped OAuth client, AGS and NRPS with pagination, transport
    policies and tests for insufficient capabilities and token expiry.
 5. **Interoperability:** complete deployment with ByCS, supported embedded-browser

@@ -132,7 +132,7 @@ in WSL on port 8443. It reads `.local/bycs/registration.json` (override with
 
 Use the actual registration values from your deliberate platform setup. The
 ByCS JWKS endpoint was observed returning an RSA key over HTTPS; auth and token
-URLs responded but the complete ByCS launch still needs a live browser test.
+URLs responded; subsequent live browser results are recorded below.
 The token endpoint is configured for future use; this runner requests no service
 tokens. Registration data stays local, outside Git.
 
@@ -193,8 +193,9 @@ user, a present context and one role. This is operator-reported live integration
 evidence, not a replayable captured-token test; no personal claims were recorded.
 
 This verifies one resource-launch path through the public HTTPS/SSH setup.
-Deep Linking, ByCS retrieval of tool JWKS, different user roles, embedded-browser
-behavior, AGS and NRPS remain unverified against the live platform. This result
+At that stage, Deep Linking and embedded selection were still pending; subsequent
+results are recorded below. ByCS retrieval of tool JWKS, broader role/browser
+coverage, AGS and NRPS remain unverified against the live platform. This result
 does not establish complete conformance or application authorization.
 
 ## Live Deep Linking test
@@ -258,8 +259,8 @@ See [MDN's CHIPS documentation](https://developer.mozilla.org/en-US/docs/Web/Pri
 
 After updating, restart the Dart runner, close the failed modal, and start a
 fresh **Inhalt auswählen** flow from ByCS. Existing states cannot be reused.
-Real browser selection, return, subsequent resource launch and cancellation
-remain to be verified; local tests do not prove browser cookie-policy behavior.
+The subsequent selection/return/resource-launch result is recorded below.
+Cancellation and broader browser cookie-policy coverage remain to be verified.
 
 The subsequent browser test reached the selection page, but clicking its button
 returned `Selection origin mismatch.`. The selection page had inherited
@@ -287,3 +288,32 @@ This follows a ByCS `fix_jwks_alg(): ... array, null given` error on the Deep
 Linking return. The old public JWKS URL returned HTTP 200 and valid JSON during
 our check, but this did not prove reachability from ByCS itself. A server-side
 port restriction is a hypothesis, not a confirmed ByCS configuration.
+
+
+### Confirmed Deep Linking round trip with a directly configured RSA key
+
+On 2026-09-27, the operator reported that switching ByCS from the keyset URL to
+the tool's directly configured RSA public key succeeded. After content selection
+and return to ByCS, the selected resource launched and the runner displayed:
+
+- `LTI 1.3 resource launch verified.`
+- Signature, issuer, audience, deployment, state and nonce validated.
+- User present: true; context present: true; role count: 1.
+- `Deep Linking test marker present: true`.
+
+This is operator-reported evidence for the embedded test selection, signed
+Deep Linking return accepted by ByCS, and subsequent resource launch carrying
+the fixed custom marker. It is not evidence of successful JWKS retrieval,
+complete LTI Advantage coverage or application authorization. Cancellation,
+other content types and additional browsers/roles remain untested live.
+
+The keyset-loading error also occurred on port 443. An independent HTTPS fetch
+of `https://ltitest.schulzeug.eu/lti/jwks` returned HTTP 200 and valid JWKS, but
+ByCS still reported `fix_jwks_alg(): ... array, null given`. The cause of that
+retrieval/configuration failure remains unresolved; a nonstandard port alone
+does not explain the observed results.
+
+The direct public key was derived from the existing LTI signing key, without
+rotating it, and saved locally as `.local/bycs/signing-public-key.pem`. Only its
+public PEM contents were intended for the ByCS registration. Direct-key mode
+does not exercise JWKS refresh or rotation.
