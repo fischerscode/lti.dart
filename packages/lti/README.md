@@ -53,10 +53,11 @@ instead of handling JWTs yourself.
 
 ## Try an offline launch
 
-The runnable [example](example/lti_example.dart) simulates a platform and browser
-in one process. It starts a login, signs a platform launch with a temporary RSA
-key, and verifies it through `RemoteJwksVerifier` and `LtiTool`. It needs no LMS,
-credentials or network connection once dependencies are installed.
+The runnable [example](https://github.com/fischerscode/lti.dart/blob/main/packages/lti/example/lti_example.dart)
+simulates a platform and browser in one process. It starts a login, signs a
+platform launch with a temporary RSA key, and verifies it through
+`RemoteJwksVerifier` and `LtiTool`. It needs no LMS, credentials or network
+connection once dependencies are installed.
 
 From the repository root after setup:
 
