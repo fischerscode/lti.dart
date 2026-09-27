@@ -51,6 +51,24 @@ launches; your tool's keys let the platform verify your outgoing messages.
 Web Token; LTI uses signed JWTs for its messages. You normally use the typed APIs
 instead of handling JWTs yourself.
 
+## Try an offline launch
+
+The runnable [example](example/lti_example.dart) simulates a platform and browser
+in one process. It starts a login, signs a platform launch with a temporary RSA
+key, and verifies it through `RemoteJwksVerifier` and `LtiTool`. It needs no LMS,
+credentials or network connection once dependencies are installed.
+
+From the repository root after setup:
+
+```sh
+fvm dart run packages/lti/example/lti_example.dart
+```
+
+From the `lti` package directory, use `dart run example/lti_example.dart`.
+The output begins with `LTI resource launch verified.`. The example demonstrates
+the core APIs; a real integration needs an HTTP adapter, browser cookies and
+application authorization. Use the Shelf quickstart for a browser-based launch.
+
 ## Configure a tool
 
 Add the published packages to your backend's `pubspec.yaml`, then run
