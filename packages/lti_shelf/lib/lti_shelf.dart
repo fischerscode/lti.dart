@@ -197,6 +197,12 @@ final class LtiShelf {
     };
     final headers = Map<String, Object>.from(response.headersAll);
     headers.addAll(_headers);
+    // Application forms may need a policy that preserves their POST Origin.
+    // Keep no-referrer as the default and always enforce no-store.
+    final referrerPolicy = response.headers['referrer-policy'];
+    if (referrerPolicy != null) {
+      headers['referrer-policy'] = referrerPolicy;
+    }
     headers['set-cookie'] = [
       ...?response.headersAll['set-cookie'],
       _cookie(state, '', 0),

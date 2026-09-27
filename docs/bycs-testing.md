@@ -260,3 +260,13 @@ After updating, restart the Dart runner, close the failed modal, and start a
 fresh **Inhalt auswählen** flow from ByCS. Existing states cannot be reused.
 Real browser selection, return, subsequent resource launch and cancellation
 remain to be verified; local tests do not prove browser cookie-policy behavior.
+
+The subsequent browser test reached the selection page, but clicking its button
+returned `Selection origin mismatch.`. The selection page had inherited
+`Referrer-Policy: no-referrer`, which makes native form POSTs send `Origin: null`
+([MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header)).
+It now uses `strict-origin`, and the adapter preserves explicitly supplied
+application referrer policies. Only the origin is disclosed, with no path or
+query string. The return-to-platform form keeps `no-referrer`.
+Missing, null and foreign origins still fail, as do missing cookies or invalid
+CSRF tokens. Restart the runner and begin a fresh selection to retest.

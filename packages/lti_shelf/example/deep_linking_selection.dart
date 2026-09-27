@@ -95,6 +95,9 @@ ${supported ? '<button type="submit" name="choice" value="select">Testinhalt hin
       headers: {
         ..._headers,
         'content-type': 'text/html; charset=utf-8',
+        // no-referrer makes native form POSTs send Origin: null. Only disclose
+        // the origin, never callback paths or query parameters.
+        'referrer-policy': 'strict-origin',
         'content-security-policy':
             "default-src 'none'; base-uri 'none'; form-action 'self'",
         'set-cookie': _cookie(id, binding, 600),

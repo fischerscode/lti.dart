@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Preserve application referrer policies and use strict-origin for the selection form to retain the browser POST Origin.
+
 - Add opt-in partitioned browser-binding cookies and trusted iframe embedding in the ByCS runner.
 
 - Add a bounded, browser-bound Deep Linking selection/cancel UI to the HTTPS integration runner.

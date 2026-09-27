@@ -82,12 +82,13 @@ void main() {
     ({String cookie, Map<String, String> fields}) data, {
     String? cookie,
     String? requestOrigin,
+    bool includeOrigin = true,
     Map<String, String>? fields,
   }) => Request(
     'POST',
     origin.resolve(DeepLinkingSelection.path),
     headers: {
-      'origin': requestOrigin ?? origin.origin,
+      if (includeOrigin) 'origin': requestOrigin ?? origin.origin,
       'content-type': 'application/x-www-form-urlencoded',
       'cookie': cookie ?? data.cookie,
     },
@@ -169,6 +170,25 @@ void main() {
       );
       expect(claims[LtiDeepLinkingClaims.contentItems], isEmpty);
       expect(claims[LtiDeepLinkingClaims.data], 'opaque-platform-value');
+    },
+  );
+  test(
+    'null and absent origins fail without consuming a valid selection',
+    () async {
+      final selection = DeepLinkingSelection(tool: tool, origin: origin);
+      final page = selection.begin(
+        Request('POST', origin.resolve('/lti/launch')),
+        await verified(),
+      );
+      expect(page.headers['referrer-policy'], 'strict-origin');
+      final data = await form(page);
+      for (final request in [
+        submit(data, requestOrigin: 'null'),
+        submit(data, includeOrigin: false),
+      ]) {
+        expect((await selection.complete(request)).statusCode, 403);
+      }
+      expect((await selection.complete(submit(data))).statusCode, 200);
     },
   );
   test('requires browser cookie, CSRF token and matching origin', () async {
@@ -311,6 +331,7 @@ void main() {
       ),
       isTrue,
     );
+    expect(response.headers['referrer-policy'], 'strict-origin');
     final data = await form(response);
     final returned = await handler(submit(data));
     expect(
@@ -319,6 +340,7 @@ void main() {
     );
     expect(returned.headers['set-cookie'], contains('; Partitioned'));
     expect(returned.headers['set-cookie'], contains('Max-Age=0'));
+    expect(returned.headers['referrer-policy'], 'no-referrer');
     final result = await verify(returned);
     expect(result[LtiClaims.messageType], 'LtiDeepLinkingResponse');
   });

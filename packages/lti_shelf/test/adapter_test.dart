@@ -78,6 +78,28 @@ void main() {
     );
   }
 
+  for (final policy in [null, 'strict-origin']) {
+    test(
+      'preserves explicit application referrer policy $policy with no-store',
+      () async {
+        adapter = LtiShelf(
+          tool: platform.tool,
+          publicOrigin: Uri.parse('https://tool.example'),
+          onResourceLaunch: (_, _) => Response.ok(
+            'verified',
+            headers: {'referrer-policy': ?policy, 'cache-control': 'public'},
+          ),
+        );
+        final start = await login();
+        expect(start.headers['referrer-policy'], 'no-referrer');
+        final response = await adapter.handler(await callback(start));
+        expect(response.statusCode, 200);
+        expect(response.headers['referrer-policy'], policy ?? 'no-referrer');
+        expect(response.headers['cache-control'], 'no-store');
+      },
+    );
+  }
+
   for (final partitioned in [false, true]) {
     test('cookie partitioning $partitioned applies to set and clear', () async {
       adapter = LtiShelf(

@@ -31,3 +31,9 @@ selection UI and protected session. See the repository
 For the WSL/SSH integration setup, `example/bycs_server.dart` provides HTTPS,
 a verified resource result and a browser-bound Deep Linking selection/cancel UI.
 See [ByCS testing](../../docs/bycs-testing.md) for configuration and live checks.
+
+Verified launch responses preserve an explicit application `Referrer-Policy`;
+the default remains `no-referrer`, and `Cache-Control: no-store` is always enforced.
+For pages with native POST forms that check `Origin`, use `strict-origin`:
+`no-referrer` can cause the browser to send `Origin: null`. The ByCS selection
+example uses this policy without accepting missing, null or foreign origins.
