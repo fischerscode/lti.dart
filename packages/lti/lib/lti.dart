@@ -42,6 +42,7 @@ export 'src/service_models.dart'
         LtiGradingProgress,
         LtiResult,
         LtiMember,
+        LtiMemberField,
         LtiMembershipStatus,
         LtiServicePage;
 export 'src/services.dart';

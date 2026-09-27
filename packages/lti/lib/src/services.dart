@@ -33,13 +33,19 @@ enum LtiServiceResponseIssue {
 }
 
 final class LtiServiceException implements Exception {
-  const LtiServiceException(this.code, {this.statusCode, this.responseIssue});
+  const LtiServiceException(
+    this.code, {
+    this.statusCode,
+    this.responseIssue,
+    this.memberField,
+  });
   final LtiServiceErrorCode code;
   final int? statusCode;
   final LtiServiceResponseIssue? responseIssue;
+  final LtiMemberField? memberField;
   @override
   String toString() =>
-      'LtiServiceException(${code.name}, status=$statusCode, issue=${responseIssue?.name})';
+      'LtiServiceException(${code.name}, status=$statusCode, issue=${responseIssue?.name}, memberField=${memberField?.name})';
 }
 
 /// Transport bound to one verified launch. Origin permissions must be supplied
@@ -248,6 +254,13 @@ T _parse<T>(
 }) {
   try {
     return parse();
+  } on MemberFormatException catch (error) {
+    throw LtiServiceException(
+      LtiServiceErrorCode.invalidResponse,
+      statusCode: statusCode,
+      responseIssue: issue,
+      memberField: error.field,
+    );
   } on LtiException {
     throw LtiServiceException(
       LtiServiceErrorCode.invalidResponse,

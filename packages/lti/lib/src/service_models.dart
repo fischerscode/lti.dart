@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'models.dart';
+import 'errors.dart';
 
 abstract final class LtiServiceScopes {
   static const lineItem =
@@ -256,34 +257,75 @@ final class LtiResult {
 
 enum LtiMembershipStatus { active, inactive, deleted }
 
+/// Fixed field names for redacted membership validation diagnostics.
+enum LtiMemberField {
+  userId,
+  roles,
+  status,
+  name,
+  givenName,
+  familyName,
+  middleName,
+  email,
+  picture,
+  personSourcedId,
+  messages,
+}
+
+// Internal exception: field metadata only, never the rejected value.
+final class MemberFormatException extends FormatException {
+  const MemberFormatException(this.field) : super('Invalid membership field.');
+  final LtiMemberField field;
+}
+
 final class LtiMember {
   LtiMember.fromJson(Map<String, Object?> data)
     : json = freezeJson(data) as Map<String, Object?> {
-    serviceString(json, 'user_id');
-    final roles = stringList(json['roles']);
-    if (roles.any((r) => !(Uri.tryParse(r)?.hasScheme ?? false))) {
-      throw const FormatException('Invalid membership role.');
+    void validate(LtiMemberField field, void Function() check) {
+      try {
+        check();
+      } on FormatException {
+        throw MemberFormatException(field);
+      } on LtiException {
+        throw MemberFormatException(field);
+      }
     }
-    if (json['status'] != null &&
-        !['Active', 'Inactive', 'Deleted'].contains(json['status'])) {
-      throw const FormatException('Invalid membership status.');
+
+    validate(LtiMemberField.userId, () {
+      serviceString(json, 'user_id');
+    });
+    validate(LtiMemberField.roles, () {
+      final roles = stringList(json['roles']);
+      if (roles.any((r) => !(Uri.tryParse(r)?.hasScheme ?? false))) {
+        throw const FormatException();
+      }
+    });
+    validate(LtiMemberField.status, () {
+      if (json['status'] != null &&
+          !['Active', 'Inactive', 'Deleted'].contains(json['status'])) {
+        throw const FormatException();
+      }
+    });
+    for (final entry in {
+      'name': LtiMemberField.name,
+      'given_name': LtiMemberField.givenName,
+      'family_name': LtiMemberField.familyName,
+      'middle_name': LtiMemberField.middleName,
+      'email': LtiMemberField.email,
+      'picture': LtiMemberField.picture,
+      'lis_person_sourcedid': LtiMemberField.personSourcedId,
+    }.entries) {
+      validate(entry.value, () => _optionalStrings(json, [entry.key]));
     }
-    _optionalStrings(json, [
-      'name',
-      'given_name',
-      'family_name',
-      'middle_name',
-      'email',
-      'picture',
-      'lis_person_sourcedid',
-    ]);
-    if (json['message'] != null &&
-        (json['message'] is! List ||
-            (json['message']! as List).any(
-              (m) => m is! Map<String, Object?>,
-            ))) {
-      throw const FormatException('Invalid membership messages.');
-    }
+    validate(LtiMemberField.messages, () {
+      if (json['message'] != null &&
+          (json['message'] is! List ||
+              (json['message']! as List).any(
+                (m) => m is! Map<String, Object?>,
+              ))) {
+        throw const FormatException();
+      }
+    });
   }
   final Map<String, Object?> json;
   String get userId => json['user_id']! as String;

@@ -448,6 +448,45 @@ void main() {
     );
   });
 
+  test(
+    'NRPS reports fixed member field names without personal values',
+    () async {
+      final api = (await services()).nrps;
+      for (final entry in <(String, Object?, LtiMemberField)>[
+        ('user_id', 123, LtiMemberField.userId),
+        ('roles', ['PRIVATE invalid role'], LtiMemberField.roles),
+        ('status', 'PRIVATE invalid status', LtiMemberField.status),
+        ('email', 123, LtiMemberField.email),
+        ('message', ['PRIVATE'], LtiMemberField.messages),
+      ]) {
+        respond = (_) async => json({
+          'id': 'https://platform.example/members',
+          'context': {'id': 'course'},
+          'members': [
+            {
+              'user_id': 'PRIVATE',
+              'roles': [LtiRoles.learner],
+              entry.$1: entry.$2,
+            },
+          ],
+        }, LtiNrpsClient.mediaType);
+        await expectLater(
+          api.memberships(),
+          throwsA(
+            isA<LtiServiceException>()
+                .having((e) => e.memberField, 'field', entry.$3)
+                .having((e) => e.statusCode, 'HTTP', 200)
+                .having(
+                  (e) => e.toString(),
+                  'redacted',
+                  isNot(contains('PRIVATE')),
+                ),
+          ),
+        );
+      }
+    },
+  );
+
   test('NRPS rejects context mismatch and malformed members', () async {
     final api = (await services()).nrps;
     for (final document in [
