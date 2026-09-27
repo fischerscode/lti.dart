@@ -467,7 +467,22 @@ void main() {
       respond = (_) async => json(document, LtiNrpsClient.mediaType);
       await expectLater(
         api.memberships(),
-        failure(LtiServiceErrorCode.invalidResponse),
+        throwsA(
+          isA<LtiServiceException>()
+              .having(
+                (e) => e.code,
+                'code',
+                LtiServiceErrorCode.invalidResponse,
+              )
+              .having((e) => e.statusCode, 'HTTP status', 200)
+              .having(
+                (e) => e.responseIssue,
+                'validation',
+                (document['context'] as Map)['id'] == 'other'
+                    ? LtiServiceResponseIssue.contextMismatch
+                    : LtiServiceResponseIssue.member,
+              ),
+        ),
       );
     }
   });

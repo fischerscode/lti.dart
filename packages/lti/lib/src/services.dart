@@ -17,12 +17,29 @@ enum LtiServiceErrorCode {
   paginationLimit,
 }
 
+/// Safe categories only; no platform values or personal data.
+enum LtiServiceResponseIssue {
+  contentType,
+  responseSize,
+  json,
+  payload,
+  pagination,
+  membershipContainer,
+  membershipContext,
+  contextMismatch,
+  members,
+  member,
+  membershipStatus,
+}
+
 final class LtiServiceException implements Exception {
-  const LtiServiceException(this.code, {this.statusCode});
+  const LtiServiceException(this.code, {this.statusCode, this.responseIssue});
   final LtiServiceErrorCode code;
   final int? statusCode;
+  final LtiServiceResponseIssue? responseIssue;
   @override
-  String toString() => 'LtiServiceException(${code.name}, status=$statusCode)';
+  String toString() =>
+      'LtiServiceException(${code.name}, status=$statusCode, issue=${responseIssue?.name})';
 }
 
 /// Transport bound to one verified launch. Origin permissions must be supplied
@@ -92,6 +109,8 @@ final class LtiServiceClient {
       deploymentId: launch.deploymentId,
     );
     final abort = Completer<void>();
+    int? statusCode;
+    LtiServiceResponseIssue? issue;
     try {
       return await (() async {
         final request = http.AbortableRequest(
@@ -106,6 +125,7 @@ final class LtiServiceClient {
           request.headers['content-type'] = mediaType!;
         }
         final response = await client.send(request);
+        statusCode = response.statusCode;
         if (!statuses.contains(response.statusCode)) {
           await response.stream.listen(null).cancel();
           if (response.statusCode == 401) oauth.invalidate(token);
@@ -118,8 +138,9 @@ final class LtiServiceClient {
         }
         if (!jsonResponse) {
           await response.stream.listen(null).cancel();
-          return _Reply(null, response.headers);
+          return _Reply(null, response.headers, response.statusCode);
         }
+        issue = LtiServiceResponseIssue.contentType;
         if (response.headers['content-type']
                 ?.split(';')
                 .first
@@ -129,6 +150,7 @@ final class LtiServiceClient {
           await response.stream.listen(null).cancel();
           throw const FormatException();
         }
+        issue = LtiServiceResponseIssue.responseSize;
         final bytes = <int>[];
         await for (final chunk in response.stream) {
           if (bytes.length + chunk.length > maxResponseBytes) {
@@ -136,12 +158,21 @@ final class LtiServiceClient {
           }
           bytes.addAll(chunk);
         }
-        return _Reply(jsonDecode(utf8.decode(bytes)), response.headers);
+        issue = LtiServiceResponseIssue.json;
+        return _Reply(
+          jsonDecode(utf8.decode(bytes)),
+          response.headers,
+          response.statusCode,
+        );
       })().timeout(timeout);
     } on LtiServiceException {
       rethrow;
     } on FormatException {
-      throw const LtiServiceException(LtiServiceErrorCode.invalidResponse);
+      throw LtiServiceException(
+        LtiServiceErrorCode.invalidResponse,
+        statusCode: statusCode,
+        responseIssue: issue,
+      );
     } on Exception {
       throw const LtiServiceException(LtiServiceErrorCode.unavailable);
     } finally {
@@ -149,35 +180,39 @@ final class LtiServiceClient {
     }
   }
 
-  Map<String, Uri> _links(_Reply reply, Uri current) => _parse(() {
-    final header = reply.headers['link'];
-    if (header == null) return <String, Uri>{};
-    final links = <String, Uri>{};
-    for (final entry in _splitLinks(header)) {
-      final match = RegExp(r'^\s*<([^>]*)>(.*)$').firstMatch(entry);
-      if (match == null) throw const FormatException();
-      final params = match.group(2)!;
-      // Anchored links have a different context; do not follow them.
-      if (RegExp(r';\s*anchor\s*=', caseSensitive: false).hasMatch(params)) {
-        continue;
+  Map<String, Uri> _links(_Reply reply, Uri current) => _parse(
+    () {
+      final header = reply.headers['link'];
+      if (header == null) return <String, Uri>{};
+      final links = <String, Uri>{};
+      for (final entry in _splitLinks(header)) {
+        final match = RegExp(r'^\s*<([^>]*)>(.*)$').firstMatch(entry);
+        if (match == null) throw const FormatException();
+        final params = match.group(2)!;
+        // Anchored links have a different context; do not follow them.
+        if (RegExp(r';\s*anchor\s*=', caseSensitive: false).hasMatch(params)) {
+          continue;
+        }
+        final rel = RegExp(
+          r';\s*rel\s*=\s*(?:"([^"]*)"|([^;\s]+))',
+          caseSensitive: false,
+        ).allMatches(params).toList();
+        if (rel.length > 1) throw const FormatException();
+        if (rel.isEmpty) continue;
+        for (final relation
+            in (rel.single.group(1) ?? rel.single.group(2)!).split(' ')) {
+          if (relation != 'next' && relation != 'differences') continue;
+          final uri = current.resolve(match.group(1)!);
+          _check(uri, pageOrigin: current);
+          if (links.containsKey(relation)) throw const FormatException();
+          links[relation] = uri;
+        }
       }
-      final rel = RegExp(
-        r';\s*rel\s*=\s*(?:"([^"]*)"|([^;\s]+))',
-        caseSensitive: false,
-      ).allMatches(params).toList();
-      if (rel.length > 1) throw const FormatException();
-      if (rel.isEmpty) continue;
-      for (final relation
-          in (rel.single.group(1) ?? rel.single.group(2)!).split(' ')) {
-        if (relation != 'next' && relation != 'differences') continue;
-        final uri = current.resolve(match.group(1)!);
-        _check(uri, pageOrigin: current);
-        if (links.containsKey(relation)) throw const FormatException();
-        links[relation] = uri;
-      }
-    }
-    return links;
-  });
+      return links;
+    },
+    statusCode: reply.statusCode,
+    issue: LtiServiceResponseIssue.pagination,
+  );
 
   Stream<T> _all<T>(
     Uri start,
@@ -200,18 +235,31 @@ final class LtiServiceClient {
 }
 
 final class _Reply {
-  const _Reply(this.data, this.headers);
+  const _Reply(this.data, this.headers, this.statusCode);
+  final int statusCode;
   final Object? data;
   final Map<String, String> headers;
 }
 
-T _parse<T>(T Function() parse) {
+T _parse<T>(
+  T Function() parse, {
+  int? statusCode,
+  LtiServiceResponseIssue issue = LtiServiceResponseIssue.payload,
+}) {
   try {
     return parse();
   } on LtiException {
-    throw const LtiServiceException(LtiServiceErrorCode.invalidResponse);
+    throw LtiServiceException(
+      LtiServiceErrorCode.invalidResponse,
+      statusCode: statusCode,
+      responseIssue: issue,
+    );
   } on FormatException {
-    throw const LtiServiceException(LtiServiceErrorCode.invalidResponse);
+    throw LtiServiceException(
+      LtiServiceErrorCode.invalidResponse,
+      statusCode: statusCode,
+      responseIssue: issue,
+    );
   }
 }
 
@@ -528,31 +576,50 @@ final class LtiNrpsClient {
       statuses: {200},
       mediaType: mediaType,
     );
-    return _parse(() {
+    T parse<T>(LtiServiceResponseIssue issue, T Function() read) =>
+        _parse(read, statusCode: reply.statusCode, issue: issue);
+    final data = parse(LtiServiceResponseIssue.membershipContainer, () {
       final data = serviceObject(reply.data);
       serviceUri(data['id']);
-      final context = serviceObject(data['context']);
-      final contextId = serviceString(context, 'id');
-      if (_service.launch.context != null &&
-          _service.launch.context!.id != contextId) {
-        throw const FormatException();
-      }
-      if (data['members'] is! List) throw const FormatException();
-      final members = (data['members']! as List)
-          .map((m) => LtiMember.fromJson(serviceObject(m)))
-          .toList();
-      if (!differences &&
-          members.any((m) => m.status == LtiMembershipStatus.deleted)) {
-        throw const FormatException();
-      }
-      final links = _service._links(reply, uri);
-      return LtiServicePage(
-        items: members,
-        context: context,
-        next: links['next'],
-        differences: links['differences'],
-      );
+      return data;
     });
+    final context = parse(LtiServiceResponseIssue.membershipContext, () {
+      final context = serviceObject(data['context']);
+      serviceString(context, 'id');
+      return context;
+    });
+    if (_service.launch.context != null &&
+        _service.launch.context!.id != context['id']) {
+      throw LtiServiceException(
+        LtiServiceErrorCode.invalidResponse,
+        statusCode: reply.statusCode,
+        responseIssue: LtiServiceResponseIssue.contextMismatch,
+      );
+    }
+    final rawMembers = parse(LtiServiceResponseIssue.members, () {
+      if (data['members'] is! List) throw const FormatException();
+      return data['members']! as List;
+    });
+    final members = parse(
+      LtiServiceResponseIssue.member,
+      () =>
+          rawMembers.map((m) => LtiMember.fromJson(serviceObject(m))).toList(),
+    );
+    if (!differences &&
+        members.any((m) => m.status == LtiMembershipStatus.deleted)) {
+      throw LtiServiceException(
+        LtiServiceErrorCode.invalidResponse,
+        statusCode: reply.statusCode,
+        responseIssue: LtiServiceResponseIssue.membershipStatus,
+      );
+    }
+    final links = _service._links(reply, uri);
+    return LtiServicePage(
+      items: members,
+      context: context,
+      next: links['next'],
+      differences: links['differences'],
+    );
   }
 
   Stream<LtiMember> allMemberships({

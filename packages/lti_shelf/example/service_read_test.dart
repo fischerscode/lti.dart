@@ -32,7 +32,8 @@ Future<String> serviceReadReport(
       );
     } on LtiServiceException catch (error) {
       lines.add(
-        '$label: service ${error.code.name}; HTTP ${error.statusCode ?? 'n/a'}',
+        '$label: service ${error.code.name}; HTTP ${error.statusCode ?? 'n/a'}'
+        '${error.responseIssue == null ? '' : '; validation=${error.responseIssue!.name}'}',
       );
     } catch (_) {
       lines.add('$label: internal test error.');
