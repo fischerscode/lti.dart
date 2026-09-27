@@ -52,7 +52,11 @@ Future<void> main() async {
     tokenVerifier: RemoteJwksVerifier(client: client),
     signer: LtiJwtSigner(keys: MemoryLtiSigningKeyProvider(key)),
   );
-  final oauth = LtiOAuthClient(client: client, signer: tool.signer!);
+  final oauth = LtiOAuthClient(
+    client: client,
+    signer: tool.signer!,
+    allowMoodleTokenContentType: true,
+  );
   final serviceReads = Platform.environment['BYCS_SERVICE_READ_TESTS'] == '1';
   final port = int.parse(Platform.environment['PORT'] ?? '8443');
   final server = await HttpServer.bindSecure(

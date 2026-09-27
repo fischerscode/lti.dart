@@ -434,3 +434,18 @@ test column, read and update it, publish a score for an explicitly selected test
 learner, inspect the gradebook/result, clear the test score, and remove only the
 created column. The present runner does not expose those write operations.
 They require a separate explicit test action and tracking of the created item.
+
+### Moodle OAuth content type compatibility
+
+The ByCS runner enables `LtiOAuthClient.allowMoodleTokenContentType`.
+The library defaults to strict `application/json`. This opt-in also accepts
+missing, `text/html` and `text/plain` headers, while still requiring bounded,
+valid JSON and fully validated token fields. HTML login/error pages fail JSON
+validation; redirects remain disabled. No response body or token is logged.
+
+Rationale: Moodle 4.5's [token endpoint](https://github.com/moodle/moodle/blob/MOODLE_405_STABLE/mod/lti/token.php)
+sets the JSON body but not the response content type; its
+[response class](https://github.com/moodle/moodle/blob/MOODLE_405_STABLE/mod/lti/classes/local/ltiservice/response.php)
+only emits an explicit content type when configured. ByCS returned HTTP 200
+with a non-JSON content type during the first service test; live compatibility
+verification is pending.

@@ -64,6 +64,7 @@ final class LtiOAuthClient {
     this.refreshLeeway = const Duration(seconds: 30),
     this.maxEntries = 100,
     this.maxResponseBytes = 65536,
+    this.allowMoodleTokenContentType = false,
   }) : _clock = clock ?? DateTime.now {
     if (timeout <= Duration.zero ||
         refreshLeeway < Duration.zero ||
@@ -79,6 +80,11 @@ final class LtiOAuthClient {
   final Duration refreshLeeway;
   final int maxEntries;
   final int maxResponseBytes;
+
+  /// Compatibility for Moodle token endpoints that omit a JSON content type.
+  /// Allows missing, text/html or text/plain headers, but still requires a
+  /// fully valid JSON token response. Enable only for a trusted registration.
+  final bool allowMoodleTokenContentType;
   final _cache = <_CacheKey, LtiAccessToken>{};
   final _pending = <_CacheKey, Future<LtiAccessToken>>{};
 
@@ -172,12 +178,18 @@ final class LtiOAuthClient {
           );
         }
         issue = LtiOAuthResponseIssue.contentType;
-        if (response.headers['content-type']
-                ?.split(';')
-                .first
-                .trim()
-                .toLowerCase() !=
-            'application/json') {
+        final mediaType = response.headers['content-type']
+            ?.split(';')
+            .first
+            .trim()
+            .toLowerCase();
+        final moodleContentType =
+            allowMoodleTokenContentType &&
+            (mediaType == null ||
+                mediaType == '' ||
+                mediaType == 'text/html' ||
+                mediaType == 'text/plain');
+        if (mediaType != 'application/json' && !moodleContentType) {
           await response.stream.listen(null).cancel();
           throw const FormatException();
         }

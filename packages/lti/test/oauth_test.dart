@@ -355,6 +355,96 @@ void main() {
     );
   });
 
+  test(
+    'Moodle content type compatibility is opt-in and still validates JSON',
+    () async {
+      for (final mediaType in [
+        null,
+        'text/html; charset=UTF-8',
+        'text/plain',
+      ]) {
+        respond = (_) async => http.Response(
+          '{"access_token":"SECRET","token_type":"Bearer","expires_in":60}',
+          200,
+          headers: {'content-type': ?mediaType},
+        );
+        await expectLater(
+          get(),
+          throwsA(
+            isA<LtiOAuthException>().having(
+              (e) => e.responseIssue,
+              'strict default',
+              LtiOAuthResponseIssue.contentType,
+            ),
+          ),
+        );
+        final compatible = LtiOAuthClient(
+          client: transport,
+          signer: signer,
+          clock: () => now,
+          allowMoodleTokenContentType: true,
+        );
+        final token = await compatible.accessToken(
+          registration: registration,
+          scopes: {'read'},
+        );
+        expect(token.value, 'SECRET');
+        compatible.invalidate(token);
+        respond = (_) async => http.Response(
+          '<html>PRIVATE login page</html>',
+          200,
+          headers: {'content-type': ?mediaType},
+        );
+        await expectLater(
+          compatible.accessToken(registration: registration, scopes: {'read'}),
+          throwsA(
+            isA<LtiOAuthException>()
+                .having(
+                  (e) => e.responseIssue,
+                  'HTML rejected',
+                  LtiOAuthResponseIssue.json,
+                )
+                .having(
+                  (e) => e.toString(),
+                  'redacted',
+                  isNot(contains('PRIVATE')),
+                ),
+          ),
+        );
+        respond = (_) async => http.Response(
+          '{"access_token":"SECRET"}',
+          200,
+          headers: {'content-type': ?mediaType},
+        );
+        await expectLater(
+          compatible.accessToken(registration: registration, scopes: {'read'}),
+          throwsA(
+            isA<LtiOAuthException>().having(
+              (e) => e.responseIssue,
+              'token validation preserved',
+              LtiOAuthResponseIssue.tokenType,
+            ),
+          ),
+        );
+        respond = (_) async => http.Response(
+          '{}',
+          200,
+          headers: {'content-type': 'application/octet-stream'},
+        );
+        await expectLater(
+          compatible.accessToken(registration: registration, scopes: {'read'}),
+          throwsA(
+            isA<LtiOAuthException>().having(
+              (e) => e.responseIssue,
+              'other types rejected',
+              LtiOAuthResponseIssue.contentType,
+            ),
+          ),
+        );
+      }
+    },
+  );
+
   test('limits response size', () async {
     oauth = LtiOAuthClient(
       client: transport,
