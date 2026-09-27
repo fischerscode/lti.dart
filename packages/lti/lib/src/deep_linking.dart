@@ -38,52 +38,52 @@ final class LtiDeepLinkingSettings {
   /// Requires an HTTPS return URL and string arrays for accepted types and
   /// presentation targets. Throws [LtiException] on malformed settings.
   LtiDeepLinkingSettings.fromJson(Map<String, Object?> json)
-    : raw = freezeJson(json) as Map<String, Object?> {
-    requiredString(raw, 'deep_link_return_url');
-    returnUrl = optionalHttpsUri(raw, 'deep_link_return_url')!;
-    acceptTypes = stringList(raw['accept_types']);
-    acceptPresentationDocumentTargets = stringList(
-      raw['accept_presentation_document_targets'],
-    );
-    acceptMediaTypes = optionalString(raw, 'accept_media_types');
-    acceptMultiple = _boolean('accept_multiple') ?? false;
-    acceptLineItem = _boolean('accept_lineitem');
-    autoCreate = _boolean('auto_create') ?? false;
-    title = optionalString(raw, 'title');
-    text = optionalString(raw, 'text');
-  }
+    : this._(freezeJson(json) as Map<String, Object?>);
+
+  LtiDeepLinkingSettings._(this.raw)
+    : returnUrl = _returnUrl(raw),
+      acceptTypes = stringList(raw['accept_types']),
+      acceptPresentationDocumentTargets = stringList(
+        raw['accept_presentation_document_targets'],
+      ),
+      acceptMediaTypes = optionalString(raw, 'accept_media_types'),
+      acceptMultiple = _boolean(raw, 'accept_multiple') ?? false,
+      acceptLineItem = _boolean(raw, 'accept_lineitem'),
+      autoCreate = _boolean(raw, 'auto_create') ?? false,
+      title = optionalString(raw, 'title'),
+      text = optionalString(raw, 'text');
 
   /// Deeply immutable settings, including unknown extension properties.
   final Map<String, Object?> raw;
 
   /// HTTPS platform destination for posting the signed selection response.
-  late final Uri returnUrl;
+  final Uri returnUrl;
 
   /// Immutable list of content item types the platform can accept.
-  late final List<String> acceptTypes;
+  final List<String> acceptTypes;
 
   /// Accepted presentation targets, including any negotiated extensions.
-  late final List<String> acceptPresentationDocumentTargets;
+  final List<String> acceptPresentationDocumentTargets;
 
   /// Comma-separated MIME ranges for files, or null when unrestricted.
-  late final String? acceptMediaTypes;
+  final String? acceptMediaTypes;
 
   /// Whether multiple selected items may be returned; defaults to false.
-  late final bool acceptMultiple;
+  final bool acceptMultiple;
 
   /// Platform hint for line-item acceptance, or null if unspecified.
   /// This hint is exposed to the application and is not a selection rejection rule.
-  late final bool? acceptLineItem;
+  final bool? acceptLineItem;
 
   /// Whether the platform requests automatic creation; defaults to false.
   /// This is a hint for the host selection UI, not an automatic action.
-  late final bool autoCreate;
+  final bool autoCreate;
 
   /// Optional title suggested by the platform for the selected content.
-  late final String? title;
+  final String? title;
 
   /// Optional descriptive text suggested by the platform.
-  late final String? text;
+  final String? text;
 
   /// Whether opaque return data was supplied, including an explicit null.
   bool get hasData => raw.containsKey('data');
@@ -91,7 +91,12 @@ final class LtiDeepLinkingSettings {
   /// Opaque value to echo unchanged when [hasData] is true; may be null.
   Object? get data => raw['data'];
 
-  bool? _boolean(String key) {
+  static Uri _returnUrl(Map<String, Object?> raw) {
+    requiredString(raw, 'deep_link_return_url');
+    return optionalHttpsUri(raw, 'deep_link_return_url')!;
+  }
+
+  static bool? _boolean(Map<String, Object?> raw, String key) {
     if (!raw.containsKey(key)) return null;
     final value = raw[key];
     if (value is bool) return value;

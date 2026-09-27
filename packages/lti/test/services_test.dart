@@ -745,6 +745,37 @@ void main() {
     expect(result.resultScore, -1);
   });
 
+  test('all AGS progress states retain their exact protocol spelling', () {
+    final activityStates = {
+      LtiActivityProgress.initialized: 'Initialized',
+      LtiActivityProgress.started: 'Started',
+      LtiActivityProgress.inProgress: 'InProgress',
+      LtiActivityProgress.submitted: 'Submitted',
+      LtiActivityProgress.completed: 'Completed',
+    };
+    final gradingStates = {
+      LtiGradingProgress.fullyGraded: 'FullyGraded',
+      LtiGradingProgress.pending: 'Pending',
+      LtiGradingProgress.pendingManual: 'PendingManual',
+      LtiGradingProgress.failed: 'Failed',
+      LtiGradingProgress.notReady: 'NotReady',
+    };
+    expect(activityStates.keys, unorderedEquals(LtiActivityProgress.values));
+    expect(gradingStates.keys, unorderedEquals(LtiGradingProgress.values));
+    for (final activity in activityStates.entries) {
+      for (final grading in gradingStates.entries) {
+        final json = LtiScore(
+          userId: 'learner',
+          timestamp: platform.now,
+          activityProgress: activity.key,
+          gradingProgress: grading.key,
+        ).toJson();
+        expect(json['activityProgress'], activity.value);
+        expect(json['gradingProgress'], grading.value);
+      }
+    }
+  });
+
   test('model validation supports clear scores, extra credit and nullable platform metadata', () {
     final score = LtiScore(
       userId: 'student',

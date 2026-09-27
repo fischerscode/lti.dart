@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'bytes.dart';
 import 'models.dart';
 import 'signing.dart';
 
@@ -89,7 +90,11 @@ final class LtiAccessToken {
   String toString() => 'LtiAccessToken([redacted])';
 }
 
-typedef _CacheKey = (LtiRegistration, String?, String);
+typedef _CacheKey = ({
+  LtiRegistration registration,
+  String? deploymentId,
+  String scopes,
+});
 
 /// Client-credentials tokens from an administrator-provisioned token endpoint.
 /// The caller owns [client]. Never construct registrations from launch URLs.
@@ -170,7 +175,11 @@ final class LtiOAuthClient {
       );
     }
     final sorted = scopes.toList()..sort();
-    final key = (registration, deploymentId, sorted.join(' '));
+    final key = (
+      registration: registration,
+      deploymentId: deploymentId,
+      scopes: sorted.join(' '),
+    );
     final now = _clock();
     _cache.removeWhere(
       (_, token) => !token.expiresAt.isAfter(now.add(refreshLeeway)),
@@ -261,13 +270,10 @@ final class LtiOAuthClient {
           throw const FormatException();
         }
         issue = LtiOAuthResponseIssue.responseSize;
-        final bytes = <int>[];
-        await for (final chunk in response.stream) {
-          if (bytes.length + chunk.length > maxResponseBytes) {
-            throw const FormatException();
-          }
-          bytes.addAll(chunk);
-        }
+        final bytes = await readBoundedBytes(
+          response.stream,
+          maxBytes: maxResponseBytes,
+        );
         issue = LtiOAuthResponseIssue.json;
         final data = jsonDecode(utf8.decode(bytes));
         if (data is! Map<String, dynamic>) throw const FormatException();

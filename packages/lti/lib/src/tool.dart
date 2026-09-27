@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'errors.dart';
 import 'deep_linking.dart';
+import 'errors.dart';
 import 'jwks.dart';
 import 'models.dart';
-import 'store.dart';
-import 'signing.dart';
-import 'vocabularies.dart';
 import 'service_models.dart';
+import 'signing.dart';
+import 'store.dart';
+import 'vocabularies.dart';
 
 /// Orchestrates login and validation without depending on a web framework.
 final class LtiTool {

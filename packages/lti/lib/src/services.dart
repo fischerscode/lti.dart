@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'bytes.dart';
 import 'errors.dart';
 import 'oauth.dart';
 import 'service_models.dart';
@@ -229,13 +230,10 @@ final class LtiServiceClient {
           throw const FormatException();
         }
         issue = LtiServiceResponseIssue.responseSize;
-        final bytes = <int>[];
-        await for (final chunk in response.stream) {
-          if (bytes.length + chunk.length > maxResponseBytes) {
-            throw const FormatException();
-          }
-          bytes.addAll(chunk);
-        }
+        final bytes = await readBoundedBytes(
+          response.stream,
+          maxBytes: maxResponseBytes,
+        );
         issue = LtiServiceResponseIssue.json;
         return _Reply(
           jsonDecode(utf8.decode(bytes)),
@@ -384,11 +382,9 @@ List<String> _splitLinks(String header) {
 }
 
 Uri _query(Uri uri, Map<String, String?> values) {
-  final present = Map<String, String>.fromEntries(
-    values.entries
-        .where((e) => e.value != null)
-        .map((e) => MapEntry(e.key, e.value!)),
-  );
+  final present = <String, String>{
+    for (final entry in values.entries) entry.key: ?entry.value,
+  };
   return present.isEmpty
       ? uri
       : uri.replace(queryParameters: {...uri.queryParametersAll, ...present});
@@ -488,8 +484,9 @@ final class LtiAgsClient {
       mediaType: lineItemsMediaType,
     );
     return _parse(() {
-      if (reply.data is! List) throw const FormatException();
-      final items = (reply.data! as List).map((d) => _lineItem(d)).toList();
+      final data = reply.data;
+      if (data is! List) throw const FormatException();
+      final items = data.map(_lineItem).toList();
       return LtiServicePage(
         items: items,
         next: _service._links(reply, uri)['next'],
@@ -681,11 +678,10 @@ final class LtiAgsClient {
       mediaType: resultsMediaType,
     );
     return _parse(() {
-      if (reply.data is! List) throw const FormatException();
+      final data = reply.data;
+      if (data is! List) throw const FormatException();
       return LtiServicePage(
-        items: (reply.data! as List).map(
-          (d) => LtiResult.fromJson(serviceObject(d)),
-        ),
+        items: data.map((d) => LtiResult.fromJson(serviceObject(d))),
         next: _service._links(reply, uri)['next'],
       );
     });
@@ -790,8 +786,9 @@ final class LtiNrpsClient {
       );
     }
     final rawMembers = parse(LtiServiceResponseIssue.members, () {
-      if (data['members'] is! List) throw const FormatException();
-      return data['members']! as List;
+      final members = data['members'];
+      if (members is! List) throw const FormatException();
+      return members;
     });
     final members = parse(
       LtiServiceResponseIssue.member,

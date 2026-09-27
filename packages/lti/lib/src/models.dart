@@ -300,17 +300,17 @@ final class LtiLaunchPresentation {
   /// Optional platform locale hint for this launch.
   final String? locale;
 
-  static LtiDocumentTarget? _target(Map<String, Object?> json) {
-    final value = optionalString(json, 'document_target');
-    if (value == null) return null;
-    for (final target in LtiDocumentTarget.values) {
-      if (target.name == value) return target;
-    }
-    throw const LtiException(
-      LtiErrorCode.invalidClaims,
-      'Invalid document target.',
-    );
-  }
+  static LtiDocumentTarget? _target(Map<String, Object?> json) =>
+      switch (optionalString(json, 'document_target')) {
+        null => null,
+        'frame' => LtiDocumentTarget.frame,
+        'iframe' => LtiDocumentTarget.iframe,
+        'window' => LtiDocumentTarget.window,
+        _ => throw const LtiException(
+          LtiErrorCode.invalidClaims,
+          'Invalid document target.',
+        ),
+      };
 
   static int? _dimension(Map<String, Object?> json, String key) {
     if (!json.containsKey(key)) return null;

@@ -13,6 +13,38 @@ Map<String, Object?> settings() => {
 };
 
 void main() {
+  test('settings snapshot input collections and preserve optional hints', () {
+    final types = ['ltiResourceLink'];
+    final opaque = <String, Object?>{
+      'key': ['original'],
+    };
+    final source = {
+      ...settings(),
+      'accept_types': types,
+      'accept_multiple': true,
+      'accept_lineitem': false,
+      'auto_create': true,
+      'title': 'Title',
+      'text': 'Description',
+      'data': opaque,
+    };
+    final parsed = LtiDeepLinkingSettings.fromJson(source);
+    types.clear();
+    opaque.clear();
+    source.clear();
+    expect(parsed.acceptTypes, ['ltiResourceLink']);
+    expect(parsed.acceptMultiple, isTrue);
+    expect(parsed.acceptLineItem, isFalse);
+    expect(parsed.autoCreate, isTrue);
+    expect(parsed.title, 'Title');
+    expect(parsed.text, 'Description');
+    expect(parsed.data, {
+      'key': ['original'],
+    });
+    expect(() => parsed.acceptTypes.clear(), throwsUnsupportedError);
+    expect(() => (parsed.data! as Map).clear(), throwsUnsupportedError);
+  });
+
   late TestPlatform platform;
   late LtiTool tool;
   late LtiJwtSigner signer;

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
+import 'errors.dart';
 import 'models.dart';
 import 'vocabularies.dart';
-import 'errors.dart';
 
 /// OAuth scope URIs used by AGS and NRPS services.
 abstract final class LtiServiceScopes {
@@ -246,40 +246,46 @@ final class LtiLineItem {
 /// Learner activity state, independently of grading state.
 enum LtiActivityProgress {
   /// The activity has been initialized but the learner has not started.
-  initialized,
+  initialized('Initialized'),
 
   /// The learner has started the activity.
-  started,
+  started('Started'),
 
   /// The learner is still working on the activity.
-  inProgress,
+  inProgress('InProgress'),
 
   /// The learner has submitted work for the activity.
-  submitted,
+  submitted('Submitted'),
 
   /// The learner has completed the activity.
-  completed,
+  completed('Completed');
+
+  const LtiActivityProgress(this._wireValue);
+
+  final String _wireValue;
 }
 
 /// Grading state sent with an AGS score update.
 enum LtiGradingProgress {
   /// Grading is complete and the reported score is final for this update.
-  fullyGraded,
+  fullyGraded('FullyGraded'),
 
   /// Automated or other grading is still pending.
-  pending,
+  pending('Pending'),
 
   /// Manual grading is required before a final result is available.
-  pendingManual,
+  pendingManual('PendingManual'),
 
   /// Grading failed and no completed grade is available.
-  failed,
+  failed('Failed'),
 
   /// The work is not yet ready to be graded.
-  notReady,
-}
+  notReady('NotReady');
 
-String _wire(String name) => name[0].toUpperCase() + name.substring(1);
+  const LtiGradingProgress(this._wireValue);
+
+  final String _wireValue;
+}
 
 /// One AGS score update for a learner and line item.
 ///
@@ -356,8 +362,8 @@ final class LtiScore {
   Map<String, Object?> toJson() => {
     ...extensions,
     'userId': userId, 'timestamp': timestamp.toUtc().toIso8601String(),
-    'activityProgress': _wire(activityProgress.name),
-    'gradingProgress': _wire(gradingProgress.name),
+    'activityProgress': activityProgress._wireValue,
+    'gradingProgress': gradingProgress._wireValue,
     // Explicit null clears an earlier score.
     'scoreGiven': scoreGiven, 'scoreMaximum': ?scoreMaximum,
     'comment': comment, 'scoringUserId': ?scoringUserId,

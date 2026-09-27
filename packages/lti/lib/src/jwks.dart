@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:jose/jose.dart';
 
+import 'bytes.dart';
 import 'errors.dart';
 import 'models.dart';
 
@@ -147,11 +148,10 @@ final class RemoteJwksVerifier implements LtiTokenVerifier {
           await response.stream.listen(null).cancel();
           throw const FormatException();
         }
-        final bytes = <int>[];
-        await for (final chunk in response.stream) {
-          bytes.addAll(chunk);
-          if (bytes.length > 1048576) throw const FormatException();
-        }
+        final bytes = await readBoundedBytes(
+          response.stream,
+          maxBytes: 1048576,
+        );
         final document = jsonObject(jsonDecode(utf8.decode(bytes)));
         final entries = document['keys'];
         if (entries is! List || entries.length > 100) {
