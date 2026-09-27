@@ -461,3 +461,45 @@ to their membership URIs. `LtiMember.json` preserves the original roles;
 whitespace variants and malformed arrays remain rejected. Extension URIs
 are preserved. This addresses a source-confirmed compatibility gap; the
 ByCS retest remains pending.
+
+## Live AGS write test
+
+Verified against ByCS: OAuth, NRPS (one member, no next page), AGS line item
+listing (empty, no next page). Writes still require live verification.
+
+Enable the explicit write UI instead of the plain launch report:
+
+```sh
+BYCS_SERVICE_WRITE_TESTS=1 BYCS_ACCESS_LOG=1 fvm dart run packages/lti_shelf/example/bycs_server.dart
+```
+
+Keep direct RSA mode and use a dedicated test course. Enable AGS column
+management, score submission and result reading, plus NRPS. Launch the activity
+freshly as an instructor. The launch itself performs no service calls or writes.
+Use the buttons in this order:
+
+1. Create the uniquely named `LTI-Dart-Test-...` column, maximum 100.
+2. Read it, rename it, then read again and check the ByCS gradebook.
+3. Load learner accounts. Only active context learners appear; no account is
+   preselected. If none appear, enroll your own test learner and load again.
+4. Select that test account and confirm sending 80/100 points.
+5. Read the result and compare with ByCS. Repeat reads if propagation is delayed.
+6. Clear the test score; read the result again and check ByCS. Platforms may
+   represent a cleared score by no result or a null score.
+7. Delete the test column and confirm its removal in ByCS. If a score may still
+   exist, deletion requires an additional checkbox confirmation.
+
+Only the item returned from this session's create request can be modified or
+deleted. No existing column is selected, and no arbitrary user ID or item URL
+is accepted from the browser. Learner names/IDs are displayed only in this
+browser-bound instructor UI; tokens and response bodies are never displayed.
+Secure partitioned cookies, same-origin POSTs, one-use CSRF values, bounded
+forms and serialized actions protect the flow. Old forms/double clicks cannot
+replay writes. Each mutation is attempted once per session, without retries.
+
+Keep the page and server running until cleanup. Sessions are in memory for one
+hour, limited to 100. Restarting or expiration loses the session. An ambiguous
+creation may leave a column without a usable ID. Record the unique column name
+shown on the page; inspect/remove that column manually in ByCS after an unclear
+write, restart, or expiration. This is a test runner, not durable production
+workflow storage. Do not run multiple write sessions for the same test exercise.

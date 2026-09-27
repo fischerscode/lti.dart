@@ -10,6 +10,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'deep_linking_selection.dart';
 import 'service_read_test.dart';
+import 'service_write_test.dart';
 
 /// Local HTTPS integration runner, not a production application.
 /// Run from the repository root; installation-specific data stays in .local/.
@@ -58,6 +59,7 @@ Future<void> main() async {
     allowMoodleTokenContentType: true,
   );
   final serviceReads = Platform.environment['BYCS_SERVICE_READ_TESTS'] == '1';
+  final serviceWrites = Platform.environment['BYCS_SERVICE_WRITE_TESTS'] == '1';
   final port = int.parse(Platform.environment['PORT'] ?? '8443');
   final server = await HttpServer.bindSecure(
     InternetAddress.loopbackIPv4,
@@ -70,7 +72,8 @@ Future<void> main() async {
       tool: tool,
       origin: origin,
       platformOrigin: Uri.parse(registration.issuer),
-      servicesFor: serviceReads
+      enableServiceWrites: serviceWrites,
+      servicesFor: serviceReads || serviceWrites
           ? (launch) => LtiServiceClient(
               launch: launch,
               oauth: oauth,
@@ -96,7 +99,8 @@ Future<void> main() async {
   stdout.writeln('Public origin: $origin');
   stdout.writeln(
     'Resource launches and Deep Linking selection enabled. '
-    'Service read tests: ${serviceReads ? 'enabled for instructors' : 'disabled'}.',
+    'Service read tests: ${serviceReads ? 'enabled for instructors' : 'disabled'}. '
+    'Service write UI: ${serviceWrites ? 'enabled for instructors' : 'disabled'}.',
   );
   if (Platform.environment['BYCS_JWKS_DIAGNOSTICS'] == '1') {
     stdout.writeln(
@@ -138,6 +142,7 @@ Handler integrationHandler({
   void Function(String message)? onJwksRequest,
   void Function(String message)? onAccessRequest,
   LtiServiceClient Function(LtiResourceLaunch)? servicesFor,
+  bool enableServiceWrites = false,
 }) {
   if (platformOrigin.scheme != 'https' || platformOrigin.host.isEmpty) {
     throw ArgumentError('An HTTPS platform origin is required.');
@@ -154,6 +159,9 @@ Handler integrationHandler({
     origin: origin,
     partitionedCookies: true,
   );
+  final writes = enableServiceWrites && servicesFor != null
+      ? ServiceWriteTest(origin: origin, servicesFor: servicesFor)
+      : null;
   final adapter = LtiShelf(
     tool: tool,
     publicOrigin: origin,
@@ -161,17 +169,19 @@ Handler integrationHandler({
     onProtocolError: (error) =>
         stderr.writeln('LTI ${error.code.name}: ${error.message}'),
     onDeepLinkingLaunch: selection.begin,
-    onResourceLaunch: (request, launch) async => Response.ok(
-      'LTI 1.3 resource launch verified.\n'
-      'Signature, issuer, audience, deployment, state and nonce validated.\n'
-      'User present: ${launch.user != null}\n'
-      'Context present: ${launch.context != null}\n'
-      'Role count: ${launch.roles.length}\n'
-      'Deep Linking test marker present: ${launch.custom['lti_dart_test'] == 'deep-linking-v1'}\n'
-      'This is a protocol test, not application authorization.\n'
-      '${servicesFor == null ? '' : '\n${await serviceReadReport(launch, servicesFor)}\n'}',
-      headers: headers,
-    ),
+    onResourceLaunch: (request, launch) async => writes != null
+        ? writes.begin(request, launch)
+        : Response.ok(
+            'LTI 1.3 resource launch verified.\n'
+            'Signature, issuer, audience, deployment, state and nonce validated.\n'
+            'User present: ${launch.user != null}\n'
+            'Context present: ${launch.context != null}\n'
+            'Role count: ${launch.roles.length}\n'
+            'Deep Linking test marker present: ${launch.custom['lti_dart_test'] == 'deep-linking-v1'}\n'
+            'This is a protocol test, not application authorization.\n'
+            '${servicesFor == null ? '' : '\n${await serviceReadReport(launch, servicesFor)}\n'}',
+            headers: headers,
+          ),
   );
   Future<Response> handle(Request request) async {
     final path = request.url.path;
@@ -188,6 +198,9 @@ Handler integrationHandler({
       );
     }
     try {
+      if ('/$path' == ServiceWriteTest.path && writes != null) {
+        return await writes.handle(request);
+      }
       if ('/$path' == DeepLinkingSelection.path) {
         return await selection.complete(request);
       }
