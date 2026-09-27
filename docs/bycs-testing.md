@@ -397,3 +397,40 @@ A response event means a handler produced a response, not that the peer received
 the complete body. Connections failing before HTTP dispatch (including TLS
 handshake failures) are not visible here. SSH forwarding does not preserve the
 original peer address for attributing an HTTP request to ByCS.
+
+## Live service test: read-only first
+
+The integration runner defaults to launch/Deep Linking only. Opt in to service
+reads with:
+
+```sh
+BYCS_SERVICE_READ_TESTS=1 BYCS_ACCESS_LOG=1 fvm dart run packages/lti_shelf/example/bycs_server.dart
+```
+
+Use a dedicated course with test accounts and the currently registered tool.
+Keep its direct RSA public key configured while the platform JWKS issue remains
+unresolved. Enable the tool's AGS service (grade synchronization and column
+management for the later CRUD test) and NRPS membership service. Names/email
+sharing is not required for this first test. Save the tool configuration, then
+open the existing resource activity freshly as an authenticated context
+instructor; do not open the direct activity URL or the content selection modal.
+
+The runner prints AGS/NRPS claim presence, then attempts a first page (limit 10)
+of memberships and line items using the shared OAuth client. If only an AGS
+single-item endpoint exists, it reads that instead. A success demonstrates the
+token and that service read path. Zero line items is a valid result.
+Only counts, next-page presence and safe error categories/status are displayed;
+no names, identifiers, grades, tokens or platform response text are printed.
+A learner/anonymous launch skips service requests. No columns or grades are
+created or changed.
+
+Service destinations are limited to the configured issuer origin. A platform
+that advertises a separate service host will produce untrustedDestination;
+review that host before changing the example's allowlist. Do not automatically
+trust a host copied from a claim.
+
+After successful reads, the next live test stages are: create a uniquely tagged
+test column, read and update it, publish a score for an explicitly selected test
+learner, inspect the gradebook/result, clear the test score, and remove only the
+created column. The present runner does not expose those write operations.
+They require a separate explicit test action and tracking of the created item.
