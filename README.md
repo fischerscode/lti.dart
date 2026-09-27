@@ -16,8 +16,8 @@ RS256-verified resource launches, typed Core claims, tool signing and public
 JWKS with rotation and Deep Linking selection/return messages. AGS, NRPS and
 dynamic registration are not yet implemented. OAuth assertions are available; the access-token client is pending.
 Live ByCS resource launch and Deep Linking selection/return followed by a marked
-resource launch were reported successful on 2026-09-27 using a directly configured
-RSA public key. ByCS retrieval of tool JWKS, cancellation, service access and
+resource launch, plus cancellation, were reported successful on 2026-09-27 using a directly configured
+RSA public key. ByCS retrieval of tool JWKS, service access and
 broader browser/role coverage remain unverified.
 See the [ByCS integration record](docs/bycs-testing.md).
 

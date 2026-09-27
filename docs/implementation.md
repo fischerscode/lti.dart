@@ -23,7 +23,7 @@ errata decisions, tested behavior and remaining integration obligations.
 | NRPS 2.0 | Pending | Membership pages, roles/status, filters and optional personal fields |
 | Cookie-restricted iframe flow | Partial | Opt-in partitioned cookies; one ByCS selection iframe flow reported successful; browser/policy coverage pending |
 | Dynamic Registration | Separate extension | Decide profile and requirements after manual ByCS integration |
-| ByCS interoperability | Resource launch and Deep Linking round trip verified | Operator-reported success on 2026-09-27 using a directly configured RSA public key; cancellation, platform JWKS retrieval, broader role/browser coverage and services pending; see [integration record](bycs-testing.md) |
+| ByCS interoperability | Resource launch, Deep Linking round trip and cancellation verified | Operator-reported success on 2026-09-27 using a directly configured RSA public key; platform JWKS retrieval, broader role/browser coverage and services pending; see [integration record](bycs-testing.md) |
 | Formal certification | Out of initial scope | Separate certification decision and test process |
 
 ## Milestones
@@ -34,8 +34,8 @@ errata decisions, tested behavior and remaining integration obligations.
    role vocabulary checks, signing-key lifecycle and public JWKS endpoint.
 3. **Deep Linking (implemented):** verified selection request, response builder
    and form response; local simulator tested and ByCS resource selection round trip
-   reported successful with a directly configured RSA public key. Cancellation
-   and other content types remain pending on the live platform.
+   reported successful with a directly configured RSA public key, including
+   cancellation. Other content types remain pending on the live platform.
 4. **Services:** scoped OAuth client, AGS and NRPS with pagination, transport
    policies and tests for insufficient capabilities and token expiry.
 5. **Interoperability:** complete deployment with ByCS, supported embedded-browser

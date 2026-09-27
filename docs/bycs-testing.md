@@ -260,7 +260,8 @@ See [MDN's CHIPS documentation](https://developer.mozilla.org/en-US/docs/Web/Pri
 After updating, restart the Dart runner, close the failed modal, and start a
 fresh **Inhalt auswählen** flow from ByCS. Existing states cannot be reused.
 The subsequent selection/return/resource-launch result is recorded below.
-Cancellation and broader browser cookie-policy coverage remain to be verified.
+Cancellation was subsequently confirmed with a directly configured RSA key
+(see below); broader browser cookie-policy coverage remains to be verified.
 
 The subsequent browser test reached the selection page, but clicking its button
 returned `Selection origin mismatch.`. The selection page had inherited
@@ -304,8 +305,8 @@ and return to ByCS, the selected resource launched and the runner displayed:
 This is operator-reported evidence for the embedded test selection, signed
 Deep Linking return accepted by ByCS, and subsequent resource launch carrying
 the fixed custom marker. It is not evidence of successful JWKS retrieval,
-complete LTI Advantage coverage or application authorization. Cancellation,
-other content types and additional browsers/roles remain untested live.
+complete LTI Advantage coverage or application authorization. Other content
+types and additional browsers/roles remain untested live.
 
 The keyset-loading error also occurred on port 443. An independent HTTPS fetch
 of `https://ltitest.schulzeug.eu/lti/jwks` returned HTTP 200 and valid JWKS, but
@@ -317,3 +318,16 @@ The direct public key was derived from the existing LTI signing key, without
 rotating it, and saved locally as `.local/bycs/signing-public-key.pem`. Only its
 public PEM contents were intended for the ByCS registration. Direct-key mode
 does not exercise JWKS refresh or rotation.
+
+
+### Confirmed cancellation with a directly configured RSA key
+
+The operator also confirmed on 2026-09-27 that **Abbrechen** works with the
+direct RSA public key configured in ByCS. The intervening cancellation attempt
+that produced the same JWKS-loading error had been made after switching the
+registration back to keyset-URL mode. That failure therefore does not establish
+a separate cancellation defect.
+
+The live test record now covers selection, signed return, subsequent resource
+launch with the custom marker, and cancellation using the directly configured
+public key. ByCS retrieval of the tool JWKS remains unresolved.
