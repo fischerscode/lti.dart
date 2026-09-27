@@ -74,10 +74,11 @@ await for (final result in ags.allResults(lineItem: created.id)) {
 await ags.deleteLineItem(lineItem: created.id);
 ```
 
-These are independent usage examples, not a recommendation to create and delete
-columns on each launch. Obtain learnerSubject from an authorized identity and
-changedAt from the persisted score change. Persist monotonically increasing
-timestamps per line item/user and serialize updates across workers; do not
+This example shows the operations in a column's lifecycle, including deletion.
+Choose the operations your workflow needs; do not recreate or delete a column
+on each launch. It assumes an authorized `resourceLaunch`, `learnerSubject` and
+`changedAt`, with the latter taken from the persisted score change. Persist
+monotonically increasing timestamps per line item/user and serialize updates across workers; do not
 generate a fresh timestamp simply to retry an uncertain write. The library
 formats subsecond UTC timestamps, but cannot order business events across
 application instances.
@@ -114,6 +115,7 @@ final page = await nrps.memberships(
 for (final member in page.items) {
   // Only userId and roles are guaranteed. Name/email may be absent.
 }
+// Separate later operation: process the full snapshot before applying changes.
 final later = page.differences;
 if (later != null) {
   await for (final changed in nrps.allMemberships(differencesUrl: later)) {
@@ -123,31 +125,43 @@ if (later != null) {
 ```
 
 NRPS requires advertised version 2.0 and requests contextmembership.readonly.
-Role, rlid and limit filters are supported. Status defaults to Active; Deleted
-is accepted only for a differences query. Per-member message claims and unknown
+The `role`, `resourceLinkId` (wire parameter `rlid`) and `limit` filters are
+supported. Member roles normalize eight exact short context role names to
+canonical URIs while retaining the original values in `LtiMember.json`; see
+[NRPS compatibility](bycs-testing.md#nrps-short-context-roles).
+Status defaults to Active; Deleted is accepted only for a differences query. Per-member message claims and unknown
 fields are preserved, not interpreted as authenticated launches. Response
 context must match the launch context when that context was supplied.
 
-For a differences report's individual pages, pass `differences: true` to
-memberships with its page URL, and retain that flag on subsequent pages.
-allMemberships carries this mode automatically. The API exposes both next and
-differences links. Snapshot/delta reconciliation and persistence are application
-responsibilities.
+The example reads only one snapshot page. For a complete roster, follow
+`page.next` or use `allMemberships` before applying later differences. Persist a
+differences cursor only after successfully processing the associated snapshot
+or changes feed.
+
+For a differences report's individual pages, call
+`memberships(page: differencesUrl, differences: true)` and retain that flag on
+subsequent pages. `allMemberships(differencesUrl: ...)` carries this mode
+automatically. The API exposes both `next` and `differences` links. Snapshot and
+changes-feed reconciliation and persistence are application responsibilities.
 
 ## Transport and local verification
 
-Responses have per-request time and size limits. Streams also bound page count
+Service HTTP requests have time and response-size limits. OAuth token acquisition
+has a separate timeout; the service timeout does not bound the entire operation.
+Streams also bound page count
 and detect repeated next URLs; individual-page APIs leave traversal under the
 caller's control. Link parsing handles relative URLs, quoted commas, multiple
-relations and rejects duplicate next/differences relations; links with a
-different anchor context are ignored. Content types and response models are
-checked before returning data.
+relations and rejects duplicate next/differences relations; links with an
+`anchor` parameter are ignored, even if the anchor identifies the current URL.
+Content types and response models are checked before returning data.
 
 HTTP 401 evicts the exact rejected OAuth token. No operation, including GET, is
 automatically retried; choose an application retry policy appropriate to the
-operation. Errors expose a category and optional status, never response bodies
-or bearer tokens. The caller owns and closes its transport, which should honor
-AbortableRequest for timely cancellation (as IOClient does). A successful
+operation. Errors expose a category, optional HTTP status and fixed validation
+metadata
+(`responseIssue` and, for member validation, `memberField`), never response
+bodies or bearer tokens. The caller owns and closes its transport, which should
+honor `AbortableRequest` for timely cancellation (as IOClient does). A successful
 response means the platform accepted the operation, not a durable application
 audit record.
 

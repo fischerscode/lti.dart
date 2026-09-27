@@ -84,33 +84,42 @@ export LTI_CLIENT_ID='assigned-client-id'
 export LTI_DEPLOYMENT_ID='assigned-deployment-id'
 export LTI_AUTH_ENDPOINT='https://platform.example/authorization'
 export LTI_JWKS_URI='https://platform.example/keys'
-
-fvm dart run packages/lti_shelf/example/server.dart
 ```
 
 `TOOL_ORIGIN` is only the external HTTPS origin, with a port if needed and no
 route suffix. Endpoint paths above are placeholders, not platform defaults.
-The startup message should report a listener on localhost port 8080.
 
 If a tool signing key is needed, generate a persistent development key once
 (using OpenSSL), set these variables, then start the server:
 
 ```sh
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out tool-private.pem
-export LTI_PRIVATE_KEY_FILE="$PWD/tool-private.pem"
+install -d -m 700 .local/keys
+(umask 077; test -e .local/keys/tool-private.pem || \
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+    -out .local/keys/tool-private.pem)
+export LTI_PRIVATE_KEY_FILE="$PWD/.local/keys/tool-private.pem"
 export LTI_KEY_ID='tool-key-1'
 ```
 
-Keep the private file outside version control and retain the same key across
-restarts. Only share the public key or public JWKS URL with the platform. To
-obtain a PEM public key for platforms using direct RSA configuration:
+The checkout ignores `.local/`; keep the private file outside version control
+and retain the same key across restarts. Only share the public key or public
+JWKS URL with the platform. To obtain a PEM public key for platforms using
+direct RSA configuration:
 
 ```sh
-openssl pkey -in tool-private.pem -pubout -out tool-public.pem
+openssl pkey -in "$LTI_PRIVATE_KEY_FILE" -pubout -out .local/keys/tool-public.pem
 ```
 
 Without these optional variables, the example verifies incoming launches but
 does not expose `/lti/jwks` or sign outgoing messages.
+
+After configuring the environment, start the server:
+
+```sh
+fvm dart run packages/lti_shelf/example/server.dart
+```
+
+The startup message should report a listener on localhost port 8080.
 
 ### 4. Open the activity from the course
 
@@ -155,23 +164,26 @@ Users may be anonymous; names and email addresses may be absent.
 
 ## Use it in your own project
 
-Until you are using a published release, point to both packages in your local
-checkout (adjust the relative paths):
+Add the published packages to your application's `pubspec.yaml`:
 
 ```yaml
 dependencies:
   lti:
-    path: ../lti.dart/packages/lti
   lti_shelf:
-    path: ../lti.dart/packages/lti_shelf
-  http: ^1.6.0
-  shelf: ^1.4.2
+  http:
+  shelf:
 ```
+
+An omitted version means `any`: pub resolves versions compatible with your SDK
+and other dependencies. An existing `pubspec.lock` keeps its resolved versions
+when possible; use `dart pub upgrade` to update them. Alternatively,
+`dart pub add lti lti_shelf http shelf` selects compatible releases and writes
+version constraints for you.
 
 Run `dart pub get`, then copy/adapt `example/server.dart` into `bin/server.dart`.
 Run it with `dart run bin/server.dart` using the same environment variables.
-Both packages require Dart 3.13 or newer. When consuming a published release,
-replace the path dependencies with the published versions.
+Both packages require Dart 3.13 or newer. If you use the development-key commands
+above in your own project, add `.local/` to that project's `.gitignore` too.
 
 ## What happens during a launch?
 
@@ -200,7 +212,8 @@ sequenceDiagram
   `deepLinkingFormResponse`. An empty selection cancels. A tool signer is required.
 - **Memberships and grades:** use `LtiServiceClient` from `lti` inside your backend.
   These are outgoing platform API calls, not additional Shelf routes. See the
-  `lti` package README for client construction.
+  [core package guide](https://github.com/fischerscode/lti.dart/blob/main/packages/lti/README.md)
+  for client construction.
 
 ## Embedding and deployment
 

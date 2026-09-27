@@ -73,7 +73,7 @@ may do, creates its own session and renders the activity.
 | Context | Usually the course containing the activity |
 | Resource link | The particular activity link placed in a course |
 | OIDC | The login exchange used before the signed launch arrives |
-| JWT | A signed message; the incoming launch is carried in an `id_token` |
+| JWT | JSON Web Token; LTI uses signed JWTs, including the incoming `id_token` |
 | JWKS | A JSON document containing public keys for verifying signatures |
 
 You do not need to implement OIDC or parse launch JWTs yourself when using the
@@ -136,6 +136,7 @@ Run the checks from the repository root:
 ```sh
 fvm dart run melos run analyze
 fvm dart run melos run test --no-select
+fvm dart run melos run test:release
 fvm dart run melos run format:check
 fvm dart run melos run docs
 ```
@@ -150,7 +151,7 @@ release links and automated publishing to pub.dev.
 
 ## Specification references
 
-You can use the packages without reading these first:
+For protocol details (optional reading):
 
 - [LTI 1.3 Core](https://www.imsglobal.org/spec/lti/v1p3/)
 - [1EdTech Security Framework](https://www.imsglobal.org/spec/security/v1p0/)

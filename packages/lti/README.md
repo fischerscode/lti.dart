@@ -31,8 +31,8 @@ flowchart LR
 
 These APIs run on the **server**, including if your frontend uses Flutter Web.
 For a ready-made HTTP integration, start with the
-`lti_shelf` quickstart (its package README). It handles redirects, cookies and
-POST bodies for you.
+[Shelf quickstart](https://github.com/fischerscode/lti.dart/blob/main/packages/lti_shelf/README.md).
+It handles redirects, cookies and POST bodies for you.
 
 ## The main building blocks
 
@@ -47,23 +47,26 @@ POST bodies for you.
 
 **JWKS** means a JSON set of public keys. The platform's keys verify incoming
 launches; your tool's keys let the platform verify your outgoing messages.
-**OIDC** is the login exchange used by LTI. A **JWT** is a signed message, such as
-the launch token. You normally use the typed APIs instead of handling JWTs yourself.
+**OIDC** (OpenID Connect) is the login protocol used by LTI. **JWT** means JSON
+Web Token; LTI uses signed JWTs for its messages. You normally use the typed APIs
+instead of handling JWTs yourself.
 
 ## Configure a tool
 
-For an unpublished/local checkout, add a path dependency to your backend's
-`pubspec.yaml` and run `dart pub get`:
+Add the published packages to your backend's `pubspec.yaml`, then run
+`dart pub get`:
 
 ```yaml
 dependencies:
   lti:
-    path: ../lti.dart/packages/lti
-  http: ^1.6.0
+  http:
 ```
 
-Adjust the path to your checkout. When consuming a published release, use its
-version instead of the path dependency.
+An omitted version means `any`: pub resolves versions compatible with your SDK
+and other dependencies. An existing `pubspec.lock` keeps its resolved versions
+when possible; use `dart pub upgrade` to update them. Alternatively,
+`dart pub add lti http` selects compatible releases and writes version constraints
+for you.
 
 This complete construction example uses placeholder platform values. Replace them
 with the exact configuration provided by your platform administrator:
@@ -203,7 +206,9 @@ if (verifiedLaunch.nrps != null) {
 
 This excerpt assumes `httpClient`, `signer` and `verifiedLaunch` already exist.
 The service client obtains scoped access tokens for you. You usually do not need
-to call `oauth.accessToken` directly.
+to call `oauth.accessToken` directly. Affected Moodle/ByCS token endpoints require
+the explicit `allowMoodleTokenContentType` option on `LtiOAuthClient`; see the
+[OAuth guide](https://github.com/fischerscode/lti.dart/blob/main/docs/oauth.md).
 
 Use `services.ags` to list/create/update/delete **line items** (gradebook columns),
 publish scores and read results. A null `LtiScore.scoreGiven` **clears** a previous
@@ -212,10 +217,14 @@ not automatically retried: a failed request may already have changed platform da
 
 ## Where to go next
 
-- Run the first-launch example in the `lti_shelf` README.
+- Run the first-launch example in the
+  [Shelf quickstart](https://github.com/fischerscode/lti.dart/blob/main/packages/lti_shelf/README.md).
 - Use API Dartdocs in your IDE for parameters, exceptions and examples.
-- In a repository checkout, see `docs/deep-linking.md`, `docs/signing.md`,
-  `docs/oauth.md` and `docs/services.md` for detailed workflows.
+- Follow the detailed guides for
+  [Deep Linking](https://github.com/fischerscode/lti.dart/blob/main/docs/deep-linking.md),
+  [signing](https://github.com/fischerscode/lti.dart/blob/main/docs/signing.md),
+  [OAuth](https://github.com/fischerscode/lti.dart/blob/main/docs/oauth.md) and
+  [services](https://github.com/fischerscode/lti.dart/blob/main/docs/services.md).
 
 Tool-side Core and Advantage are implemented; Dynamic Registration is a separate,
 unimplemented extension. Test interoperability with your target platform before

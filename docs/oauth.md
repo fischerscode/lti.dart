@@ -44,6 +44,14 @@ from authorizationServerAudience, falling back to tokenEndpoint. It posts
 grant_type, client_assertion_type, client_assertion and canonical scope as a URL
 encoded form. There are no automatic retries.
 
+By default, a successful response must have `Content-Type: application/json`.
+For an affected, trusted Moodle/ByCS endpoint, construct `LtiOAuthClient` with
+`allowMoodleTokenContentType: true`. This also accepts a missing content type,
+`text/html` or `text/plain`; the body must still pass all JSON and token checks.
+The option applies to every registration using that client, so keep a separate
+client for platforms that need it. See the
+[ByCS compatibility record](bycs-testing.md#moodle-oauth-content-type-compatibility).
+
 A successful response must be HTTP 200 JSON with a nonempty Bearer credential
 and positive integer expires_in (at most 2147483647 seconds). Missing scope means
 the requested set; a returned scope must cover all requested scopes. Reduced
@@ -65,14 +73,17 @@ tokens are not reused for a different requested scope set. The in-memory cache
 and distinct pending requests are bounded; concurrent identical requests share
 one exchange. Default early refresh margin is 30 seconds.
 
-After a service rejects a token, call oauth.invalidate(token). This removes
-only the matching cached object, not a newer replacement. The application
+The service client automatically calls `oauth.invalidate(token)` on HTTP 401.
+If you implement service requests yourself, call it when a token is rejected.
+This removes only the matching cached object, not a newer replacement. The application
 decides whether the failed operation is safe to retry. Recreate the client when
 immediate invalidation of all credentials is required; the cache is not durable
 or shared across isolates.
 
-LtiOAuthException exposes only a category and optional HTTP status:
-rejected, unavailable, invalidResponse, insufficientScope or capacity.
+`LtiOAuthException.code` is one of `rejected`, `unavailable`, `invalidResponse`,
+`insufficientScope` or `capacity`. The exception also exposes an optional HTTP
+`statusCode` and a fixed `responseIssue` category for validation failures, such
+as `contentType` or `expiresIn`.
 Assertions, access tokens, response descriptions and transport error text are
 never included. Token toString is redacted; accessing value is explicit.
 Do not log HTTP request/response bodies in a custom transport.

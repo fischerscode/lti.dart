@@ -40,8 +40,9 @@ JSON or use the original id_token as a reusable session credential. The library
 consumes the login transaction once. Application authorization is still needed,
 especially when the request omits roles or user information.
 
-For cancellation, pass no items. `message`, `log`, `errorMessage` and `errorLog`
-add optional signed response messages. The builder reloads the registration and
+For cancellation, omit `items` or pass `items: []`. This returns no new content
+items; it does not delete previously added activities. The `message`, `log`,
+`errorMessage` and `errorLog` parameters add optional signed response messages. The builder reloads the registration and
 checks that its deployment and original login target are still enabled. The
 response includes the exact opaque `data` JSON value when present (including
 empty values), a fresh nonce, and a short-lived RS256 signature. Its audience is
@@ -93,6 +94,6 @@ Tests use real RSA signatures and a local simulated platform to cover selection,
 response verification, subsequent resource launch, cancellation, opaque data,
 all five content types, negotiation failures, malformed requests, output escaping
 and replay. One live ByCS browser flow with a direct RSA key has been exercised;
-other content types and broader browser/platform coverage remain part of the
-interoperability milestone. The specification's linked errata page was unavailable during this
-implementation; recheck it as part of that milestone.
+other content types and broader browser/platform coverage remain unverified.
+The specification's linked errata page was unavailable during implementation;
+recheck it before a formal conformance claim.

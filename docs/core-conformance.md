@@ -46,8 +46,10 @@ aliases listed in [Core Appendix A.1](https://www.imsglobal.org/spec/lti/v1p3/#c
 `launch.context.types` normalizes those exact aliases to canonical URIs, while
 `launch.claims` retains the original signed values. This accommodates Moodle
 course launches that send `CourseSection` or `Group`. Arbitrary short names and
-case variants are still rejected. Role vocabularies continue to recognize only
-current URIs; deprecated role short names and legacy URNs are not normalized. Unknown extension URIs can accompany recognized vocabulary values.
+case variants are still rejected. Launch roles recognize current standard URIs;
+deprecated role short names and legacy URNs are not normalized. Unknown extension URIs can accompany recognized
+vocabulary values. Separately, NRPS member parsing normalizes eight exact short
+context role names; see [NRPS compatibility](bycs-testing.md#nrps-short-context-roles).
 No role helper automatically grants application permissions.
 
 Malformed present optional objects (including JSON null) are rejected rather than
@@ -60,6 +62,7 @@ The Shelf adapter requires cookies, with opt-in partitioned cookies. A top-level
 window may be needed when embedded storage is unavailable. Production transaction
 storage and broader browser/platform coverage remain integration requirements.
 Resource launch and Deep Linking selection/cancellation have been tested in ByCS
-with a directly configured RSA key; service checks are deferred. Static key
-exchange, Common Cartridge file authoring, platform-side substitution and LMS
+with a directly configured RSA public key. OAuth, NRPS reads and AGS grade
+workflows were also reported successful; see the [live test record](bycs-testing.md).
+Static key exchange, Common Cartridge file authoring, platform-side substitution and LMS
 functionality are not part of this resource-launch adapter.

@@ -9,9 +9,10 @@ provide registrations, transaction storage and an HTTP client. The standard
 an implementation which only decodes JWTs breaks the security contract.
 
 `lti_shelf` handles HTTP encoding, method restrictions and browser binding, then
-calls application code with a verified `LtiResourceLaunch`. The application owns
-its sessions, authorization, UI, persistence and business logic. A verified role
-is contextual data, not an automatic grant of application permissions.
+calls application code with a verified `LtiResourceLaunch` or
+`LtiDeepLinkingLaunch`. The application owns its sessions, authorization, UI,
+persistence and business logic. A verified role is contextual data, not an
+automatic grant of application permissions.
 
 ## Resource launch
 
@@ -26,7 +27,8 @@ is contextual data, not an automatic grant of application permissions.
    consumes the matching unexpired transaction, then reloads the registration.
 6. The verifier checks RS256 using the platform's configured public JWKS. The core
    checks issuer, audience/authorized party, timestamps, nonce, version, message,
-   deployment and target. Required resource/user/context fields are parsed.
+   deployment and target. The resource link and roles are required; user identity
+   and context are optional but validated when present.
 7. The application receives an immutable verified launch, establishes its own
    session and responds. The adapter expires the login cookie and preserves
    application response cookies. Launch tokens must not be passed to the frontend.
@@ -43,7 +45,9 @@ Additional audiences in a token must be explicitly configured through
 Platform, presentation and LIS metadata are typed. Standard roles and context
 types are validated without interpreting them as application permissions.
 Bound OIDC error responses terminate the transaction; raw platform error text is
-not reflected. Authentication failures return HTTP 401 from the Shelf callback.
+not reflected. Invalid tokens/claims, platform authentication errors and unknown
+registrations return HTTP 401 from the Shelf callback. State/binding and malformed
+request errors return 400; platform key-fetch failures return 502.
 
 ## Storage contract
 
@@ -87,7 +91,8 @@ binds requests to their registration/deployment and an administrator-provisioned
 HTTPS origin allowlist. It validates service, item and pagination destinations
 before acquiring/forwarding bearer tokens. Scoped OAuth tokens are cached by
 registration identity, deployment and exact scope set; requests and page streams
-are bounded. No redirects or automatic mutation retries are performed.
+are bounded. Requests never follow redirects or retry automatically, including
+read requests.
 See [OAuth](oauth.md) and [service APIs](services.md).
 
 The library supplies protocols, not application persistence. Host applications

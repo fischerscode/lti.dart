@@ -1,5 +1,13 @@
 # ByCS integration environment
 
+This guide describes the development test setup and records its live results.
+Resource launches, Deep Linking selection/cancellation, OAuth, NRPS reads and
+AGS column/score workflows were reported successful with a directly configured
+RSA public key. ByCS retrieval of the tool JWKS remains unresolved.
+The runner starts with service tests disabled; enable them explicitly in the
+[read-test](#live-service-test-read-only-first) or [write-test](#live-ags-write-test)
+steps below. Historical failures are retained to explain the compatibility fixes.
+
 The development server runs in WSL. An external SSH server supplies the public
 IPv4 endpoint. TLS terminates in WSL, not on the external server:
 
@@ -29,7 +37,11 @@ ssh -N -T \
 
 The SSH server needs to permit remote TCP forwarding and the requested public
 binding (`GatewayPorts clientspecified`), with TCP 443 reachable through its
-firewall. Successful SSH login alone does not establish external reachability.
+firewall. Binding remote port 443 also requires permission to use a privileged
+port on that server; `GatewayPorts` alone does not grant it. Have the server
+administrator configure that listener or forward public port 443 to an allowed
+unprivileged tunnel port. Successful SSH login alone does not establish external
+reachability. See the [OpenSSH forwarding documentation](https://man.openbsd.org/ssh#R).
 
 ## Certificate
 
@@ -59,7 +71,8 @@ sudo install -m 600 -o "$(id -u)" -g "$(id -g)" \
 ```
 
 `.local/` is ignored by Git. The TLS private key must remain private and is
-separate from the future LTI signing key. Do not run the Dart application as root.
+separate from the LTI signing key configured below. Do not run the Dart
+application as root.
 
 ## Connectivity probe
 
@@ -133,8 +146,9 @@ in WSL on port 8443. It reads `.local/bycs/registration.json` (override with
 Use the actual registration values from your deliberate platform setup. The
 ByCS JWKS endpoint was observed returning an RSA key over HTTPS; auth and token
 URLs responded; subsequent live browser results are recorded below.
-The token endpoint is configured for future use; this runner requests no service
-tokens. Registration data stays local, outside Git.
+The token endpoint is required in the configuration, but the runner requests
+service tokens only when a service-test mode is enabled. Registration data stays
+local, outside Git.
 
 Generate a separate RSA signing key once, if one does not already exist:
 
@@ -155,7 +169,7 @@ Public paths:
 - `/health`: server readiness; not evidence of a successful LTI launch.
 - `/lti/jwks`: public LTI signing keys; never private or TLS keys.
 - `/lti/login`: registered OIDC login initiation, no longer a diagnostic echo.
-- `/lti/launch`: signed resource callback, verified using the library.
+- `/lti/launch`: signed resource or Deep Linking callback, verified by the library.
 - `/activity`: registered resource target; direct access only explains how to launch.
 
 Open the activity from ByCS in a new window. Success displays
@@ -167,13 +181,16 @@ On a rejection, the runner prints `LTI <code>: <reason>` in the WSL terminal.
 The reason identifies the failed check or field without printing claim values,
 JWTs, cookies or login hints. The browser still receives only the generic error
 code. Restart the runner after code updates and always start a fresh activity
-launch from ByCS; callback attempts consume the login transaction.
+launch from ByCS; a callback consumes a matching, unexpired transaction once
+its browser binding has been checked, even if later token validation fails.
 
 This runner supports resource launches and a fixed Deep Linking test selection.
-Keep AGS and NRPS disabled in ByCS. It uses in-memory transactions and selection
-sessions for a single development process; restarting invalidates pending logins. Use a test course, not a public
-production deployment. The earlier diagnostic runner remains separate and does
-not feed registrations into this server automatically.
+For the initial launch and selection tests, leave AGS and NRPS disabled; enable
+them for the service-test steps below. The runner uses in-memory transactions
+and sessions for a single development process; restarting invalidates pending
+logins and test sessions. Use a dedicated test course. The earlier diagnostic
+runner remains separate and does not feed registrations into this server
+automatically.
 
 ### Interoperability findings
 
@@ -206,8 +223,19 @@ open. Edit the existing ByCS tool registration:
 - Enable **Unterstützt Deep Linking (Content-Item Message)**.
 - Set **Inhalts-URL** to `https://ltitest.schulzeug.eu/activity`.
 - Keep **Umleitungs-URI(s)** as `https://ltitest.schulzeug.eu/lti/launch`.
-- Keep the public keyset at `https://ltitest.schulzeug.eu/lti/jwks`.
+- Configure the tool's direct RSA public key, derived from the configured signing key.
+  Keyset-URL mode at `https://ltitest.schulzeug.eu/lti/jwks` is still unresolved
+  in ByCS; use it only for the dedicated JWKS diagnosis.
 - Keep a new-window launch container initially and leave services disabled.
+
+To obtain the public PEM for the registration:
+
+```sh
+openssl pkey -in .local/bycs/signing-key.pem -pubout \
+  -out .local/bycs/signing-public-key.pem
+```
+
+Copy only the public PEM into ByCS.
 
 The content-selection target intentionally matches the existing allowed resource
 URL. The signed message type selects the handler, so separate login and redirect

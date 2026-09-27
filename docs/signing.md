@@ -37,8 +37,8 @@ automatically a valid Deep Linking response. Use
 JWT for an OAuth token request. Issuer and subject both contain the client
 ID, and every assertion receives a fresh `jti`. The audience is the registration's
 explicit `authorizationServerAudience`, or its `tokenEndpoint` if no separate
-audience was provisioned. This signer method does not make network requests or cache access tokens;
-`LtiOAuthClient` supplies that functionality.
+audience was provisioned. This signer method does not make network requests or
+cache access tokens; `LtiOAuthClient` supplies that functionality.
 
 The default lifetime is five minutes, configurable from one second to five
 minutes. Tokens which expire while waiting for an external signer are rejected.
@@ -73,8 +73,11 @@ Rotation timing must account for the platform's actual caching behavior.
 ## Example and validation
 
 The Shelf example accepts optional `LTI_PRIVATE_KEY_FILE` (PEM) and `LTI_KEY_ID`
-environment variables. If absent, incoming resource launches still work and no
-JWKS route is exposed. If configured, register its HTTPS JWKS URL with the LMS.
+environment variables. Set both to enable signing. Without `LTI_PRIVATE_KEY_FILE`,
+incoming resource launches still work and no JWKS route is exposed. When signing
+is enabled, register its HTTPS JWKS URL or direct RSA public key with the LMS,
+according to the platform's configuration. ByCS live tests used the direct key;
+its retrieval of the tool JWKS remains unresolved.
 
 `signing_test.dart` verifies real signatures, assertion identities, reserved
 claims, staged rotation, PEM import and asynchronous signing. `jwks_route_test.dart`
