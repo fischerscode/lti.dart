@@ -78,6 +78,33 @@ void main() {
     );
   }
 
+  for (final partitioned in [false, true]) {
+    test('cookie partitioning $partitioned applies to set and clear', () async {
+      adapter = LtiShelf(
+        tool: platform.tool,
+        publicOrigin: Uri.parse('https://tool.example'),
+        partitionedCookies: partitioned,
+        onResourceLaunch: (_, _) => Response.ok('verified'),
+      );
+      final start = await login();
+      expect(
+        start.headers['set-cookie']!.contains('; Partitioned'),
+        partitioned,
+      );
+      final response = await adapter.handler(await callback(start));
+      expect(response.statusCode, 200);
+      expect(response.headers['set-cookie'], contains('Max-Age=0'));
+      expect(
+        response.headers['set-cookie']!.contains('; Partitioned'),
+        partitioned,
+      );
+      final missing = await adapter.handler(
+        await callback(await login(), includeCookie: false),
+      );
+      expect(missing.statusCode, 400);
+    });
+  }
+
   test('invalid audience returns 401 without dispatching a launch', () async {
     final result = await adapter.handler(
       await callback(await login(), invalidAudience: true),

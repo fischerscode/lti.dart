@@ -52,11 +52,18 @@ Future<void> main() async {
     signer: LtiJwtSigner(keys: MemoryLtiSigningKeyProvider(key)),
   );
   final port = int.parse(Platform.environment['PORT'] ?? '8443');
-  final server = await shelf_io.serve(
-    integrationHandler(tool: tool, origin: origin),
+  final server = await HttpServer.bindSecure(
     InternetAddress.loopbackIPv4,
     port,
-    securityContext: tls,
+    tls,
+  );
+  serveIntegration(
+    server,
+    integrationHandler(
+      tool: tool,
+      origin: origin,
+      platformOrigin: Uri.parse(registration.issuer),
+    ),
   );
   server.idleTimeout = const Duration(seconds: 15);
   stdout.writeln(
@@ -80,18 +87,39 @@ Future<void> main() async {
   await terminate.cancel();
 }
 
+/// Serves the integration handler without Dart's conflicting framing default.
+void serveIntegration(HttpServer server, Handler handler) {
+  // Dart's default SAMEORIGIN header prevents embedding in the platform.
+  // The integration handler supplies a restrictive frame-ancestors policy.
+  server.defaultResponseHeaders.removeAll('x-frame-options');
+  shelf_io.serveRequests(server, handler);
+}
+
 /// Shows protocol success without exposing users, course IDs or raw JWTs.
-Handler integrationHandler({required LtiTool tool, required Uri origin}) {
+Handler integrationHandler({
+  required LtiTool tool,
+  required Uri origin,
+  required Uri platformOrigin,
+}) {
+  if (platformOrigin.scheme != 'https' || platformOrigin.host.isEmpty) {
+    throw ArgumentError('An HTTPS platform origin is required.');
+  }
+  final ancestors = "frame-ancestors 'self' ${platformOrigin.origin}";
   const headers = {
     'content-type': 'text/plain; charset=utf-8',
     'cache-control': 'no-store',
     'referrer-policy': 'no-referrer',
     'x-content-type-options': 'nosniff',
   };
-  final selection = DeepLinkingSelection(tool: tool, origin: origin);
+  final selection = DeepLinkingSelection(
+    tool: tool,
+    origin: origin,
+    partitionedCookies: true,
+  );
   final adapter = LtiShelf(
     tool: tool,
     publicOrigin: origin,
+    partitionedCookies: true,
     onProtocolError: (error) =>
         stderr.writeln('LTI ${error.code.name}: ${error.message}'),
     onDeepLinkingLaunch: selection.begin,
@@ -106,7 +134,7 @@ Handler integrationHandler({required LtiTool tool, required Uri origin}) {
       headers: headers,
     ),
   );
-  return (request) async {
+  Future<Response> handle(Request request) async {
     final path = request.url.path;
     if (path.isEmpty || path == 'health' || path == 'activity') {
       if (request.method != 'GET' && request.method != 'HEAD') {
@@ -133,5 +161,15 @@ Handler integrationHandler({required LtiTool tool, required Uri origin}) {
         headers: headers,
       );
     }
+  }
+
+  return (request) async {
+    final response = await handle(request);
+    final csp = response.headers['content-security-policy'];
+    return response.change(
+      headers: {
+        'content-security-policy': csp == null ? ancestors : '$csp; $ancestors',
+      },
+    );
   };
 }

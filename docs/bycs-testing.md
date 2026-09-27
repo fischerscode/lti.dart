@@ -234,5 +234,29 @@ That is the example's policy, not an LTI requirement. It stores the verified lau
 server-side for at most ten minutes, uses independent secure HttpOnly cookies for
 parallel selections, checks the POST Origin and CSRF token, bounds form/session
 sizes and consumes each session before signing. If a browser blocks cookies,
-restart in a top-level window. On expiry or server restart, start a new selection
+use a top-level launch where the platform permits it. On expiry or server restart, start a new selection
 from ByCS. Production tools need shared session storage and their own authorization.
+
+### Embedded selection and registration details
+
+ByCS shows the Client-ID when **editing the tool after creating it** (confirmed
+by the tester). The content selection opens in a modal iframe, independently of
+the activity's default launch container.
+
+The browser test exposed Dart HttpServer's default
+`X-Frame-Options: SAMEORIGIN`, which blocked the ByCS iframe. The runner removes
+that default before accepting requests and adds
+`frame-ancestors 'self' <configured issuer origin>` to every response, preserving
+the selection and return forms' existing CSP directives.
+
+The runner also enables `Partitioned` on both OIDC binding and selection cookies
+(Secure, HttpOnly, SameSite=None), including deletion. CHIPS-capable browsers can
+keep these cookies under the embedding platform's partition even when ordinary
+third-party cookies are blocked. Missing or ambiguous binding cookies still
+reject the callback; this is not a cookie-free authentication fallback.
+See [MDN's CHIPS documentation](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Third-party_cookies/Partitioned_cookies).
+
+After updating, restart the Dart runner, close the failed modal, and start a
+fresh **Inhalt auswählen** flow from ByCS. Existing states cannot be reused.
+Real browser selection, return, subsequent resource launch and cancellation
+remain to be verified; local tests do not prove browser cookie-policy behavior.

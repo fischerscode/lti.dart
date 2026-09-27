@@ -28,7 +28,11 @@ void main() {
         clock: () => platform.now,
       ),
     );
-    handler = integrationHandler(tool: tool, origin: origin);
+    handler = integrationHandler(
+      tool: tool,
+      origin: origin,
+      platformOrigin: Uri.parse('https://platform.example'),
+    );
   });
   tearDown(() => platform.client.close());
 
@@ -295,8 +299,27 @@ void main() {
         ).query,
       ),
     );
+    expect(
+      response.headers['content-security-policy'],
+      contains(
+        "form-action 'self'; frame-ancestors 'self' https://platform.example",
+      ),
+    );
+    expect(
+      response.headersAll['set-cookie']!.every(
+        (cookie) => cookie.contains('; Partitioned'),
+      ),
+      isTrue,
+    );
     final data = await form(response);
-    final result = await verify(await handler(submit(data)));
+    final returned = await handler(submit(data));
+    expect(
+      returned.headers['content-security-policy'],
+      contains("frame-ancestors 'self' https://platform.example"),
+    );
+    expect(returned.headers['set-cookie'], contains('; Partitioned'));
+    expect(returned.headers['set-cookie'], contains('Max-Age=0'));
+    final result = await verify(returned);
     expect(result[LtiClaims.messageType], 'LtiDeepLinkingResponse');
   });
 }

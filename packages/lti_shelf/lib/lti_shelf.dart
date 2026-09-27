@@ -22,7 +22,7 @@ typedef LtiDeepLinkingLaunchHandler = FutureOr<Response> Function(
 /// HTTPS must terminate at the server or a trusted reverse proxy.
 ///
 /// This adapter requires a browser cookie to bind the OIDC response. Browsers
-/// blocking third-party cookies must launch in a top-level window for now.
+/// can use opt-in partitioned cookies for embedded launches where supported.
 /// Missing cookies fail closed; the adapter never falls back to state alone.
 final class LtiShelf {
   LtiShelf({
@@ -36,6 +36,7 @@ final class LtiShelf {
     this.jwksPath = '/lti/jwks',
     this.jwksCacheLifetime = const Duration(minutes: 5),
     this.maxRequestBytes = 131072,
+    this.partitionedCookies = false,
   }) {
     if (publicOrigin.scheme != 'https' ||
         publicOrigin.host.isEmpty ||
@@ -70,6 +71,10 @@ final class LtiShelf {
   final String jwksPath;
   final Duration jwksCacheLifetime;
   final int maxRequestBytes;
+
+  /// Opt into CHIPS for browser binding within a platform iframe.
+  /// Requires browser support; missing cookies still fail closed.
+  final bool partitionedCookies;
 
   static const _headers = {
     'cache-control': 'no-store',
@@ -200,7 +205,8 @@ final class LtiShelf {
   }
 
   String _cookie(String state, String value, int maxAge) =>
-      '__Host-lti-$state=$value; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=$maxAge';
+      '__Host-lti-$state=$value; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=$maxAge'
+      '${partitionedCookies ? '; Partitioned' : ''}';
 
   String _browserBinding(Request request, String state) {
     final name = '__Host-lti-$state';

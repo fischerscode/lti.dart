@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
@@ -11,10 +13,34 @@ void main() {
     platform = TestPlatform();
     handler = integrationHandler(
       tool: platform.tool,
+      platformOrigin: Uri.parse('https://platform.example'),
       origin: Uri.parse('https://tool.example'),
     );
   });
   tearDown(() => platform.client.close());
+
+  test(
+    'wire response allows only trusted framing without Dart SAMEORIGIN',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final client = HttpClient();
+      addTearDown(() async {
+        client.close(force: true);
+        await server.close(force: true);
+      });
+      serveIntegration(server, handler);
+      final request = await client.getUrl(
+        Uri.parse('http://127.0.0.1:${server.port}/health'),
+      );
+      final response = await request.close();
+      expect(response.headers.value('x-frame-options'), isNull);
+      expect(
+        response.headers.value('content-security-policy'),
+        "frame-ancestors 'self' https://platform.example",
+      );
+      await response.drain<void>();
+    },
+  );
 
   test('health and direct activity never claim a verified launch', () async {
     for (final path in ['/health', '/activity']) {

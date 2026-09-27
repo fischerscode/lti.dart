@@ -13,8 +13,12 @@ public verification keys only. Override `jwksPath` and `jwksCacheLifetime` as
 needed. See the repository signing guide for staged key rotation.
 
 The adapter uses a Secure, HttpOnly, SameSite=None cookie for browser binding and
-rejects missing cookies. Use top-level launches when third-party cookies are
-blocked. Application sessions and authorization remain the application's job.
+rejects missing cookies. Set `partitionedCookies: true` to opt into CHIPS for
+embedded launches in supporting browsers. This applies to cookie creation and
+deletion; browser policy may still prevent cookie access. Use top-level launches
+where embedded cookies are unavailable. For iframe embedding, replace Dart
+HttpServer's default `X-Frame-Options: SAMEORIGIN` with a CSP `frame-ancestors`
+allowlist of trusted platform origins (see the ByCS runner). Application sessions and authorization remain the application's job.
 
 This is a development release; it does not yet implement the complete LTI 1.3 /
 LTI Advantage suite. Configure `onDeepLinkingLaunch` to receive verified selection

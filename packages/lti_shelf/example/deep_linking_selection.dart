@@ -14,11 +14,13 @@ final class DeepLinkingSelection {
     required this.origin,
     DateTime Function()? clock,
     this.maxSessions = 1000,
+    this.partitionedCookies = false,
   }) : _clock = clock ?? DateTime.now;
   final LtiTool tool;
   final Uri origin;
   final DateTime Function() _clock;
   final int maxSessions;
+  final bool partitionedCookies;
   final _random = Random.secure();
   final _sessions = <String, _SelectionSession>{};
   static const path = '/test/deep-linking';
@@ -35,7 +37,8 @@ final class DeepLinkingSelection {
     (_, session) => !session.expiresAt.isAfter(_clock()),
   );
   String _cookie(String id, String value, int age) =>
-      '__Host-lti-selection-$id=$value; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=$age';
+      '__Host-lti-selection-$id=$value; Path=/; Secure; HttpOnly; SameSite=None; Max-Age=$age'
+      '${partitionedCookies ? '; Partitioned' : ''}';
 
   Response begin(Request request, LtiDeepLinkingLaunch launch) {
     if (tool.signer == null) {
