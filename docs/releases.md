@@ -46,9 +46,12 @@ package's pub.dev Admin settings.
 
 ## First publication
 
+Before the first publication, the package changelogs are intentionally empty.
 Commit all intended changes and run the checks below. Use Melos to prepare the
-first intended release version just as for subsequent releases. Review both
-changelogs before accepting/pushing the release.
+first intended release version just as for subsequent releases. With no package
+release tags, Melos generates the initial notes from the relevant commit history.
+Review the proposed versions before confirming, then inspect both generated
+changelogs before publishing or pushing the release.
 
 Publish **lti first**, then **lti_shelf**, from the workspace root:
 
@@ -98,8 +101,10 @@ and stages the workspace lockfile using the cached dependencies. If it cannot
 resolve offline, resolve dependencies before retrying and inspect any partial
 version changes; do not blindly rerun a failed release.
 
-The existing initial-version notes are retained. New release notes come from
-commit history; do not maintain a separate `Unreleased` heading above them.
+Melos prepends release notes generated from commit history to each package's
+changelog. It does not merge them with hand-written notes. Keep published release
+entries as history; do not add duplicate notes for an upcoming version or maintain
+a separate `Unreleased` heading above them.
 Melos's `releaseUrl: true` prints links to prefilled GitHub release pages.
 The equivalent command-line option is `--release-url`; there is no `melos link`.
 See [Melos version documentation](https://melos.invertase.dev/commands/version).
