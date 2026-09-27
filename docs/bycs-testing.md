@@ -4,8 +4,8 @@ The development server runs in WSL. An external SSH server supplies the public
 IPv4 endpoint. TLS terminates in WSL, not on the external server:
 
 ```text
-https://ltitest.schulzeug.eu:55531
-    -> external TCP listener :55531
+https://ltitest.schulzeug.eu
+    -> external TCP listener :443
     -> reverse SSH tunnel
     -> WSL 127.0.0.1:8443 (HTTPS)
 ```
@@ -23,12 +23,12 @@ ssh -N -T \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=30 \
   -o ServerAliveCountMax=3 \
-  -R 0.0.0.0:55531:127.0.0.1:8443 \
+  -R 0.0.0.0:443:127.0.0.1:8443 \
   USER@SSH-SERVER
 ```
 
 The SSH server needs to permit remote TCP forwarding and the requested public
-binding (`GatewayPorts clientspecified`), with TCP 55531 reachable through its
+binding (`GatewayPorts clientspecified`), with TCP 443 reachable through its
 firewall. Successful SSH login alone does not establish external reachability.
 
 ## Certificate
@@ -85,7 +85,7 @@ curl --noproxy '*' --resolve ltitest.schulzeug.eu:8443:127.0.0.1 \
 Then verify the complete public path, preferably also from a separate network:
 
 ```sh
-curl --noproxy '*' https://ltitest.schulzeug.eu:55531/health
+curl --noproxy '*' https://ltitest.schulzeug.eu/health
 ```
 
 A passing request proves HTTPS reachability from that client. ByCS's own
@@ -96,7 +96,7 @@ outbound-port policy still needs verification during the JWKS integration.
 If ByCS does not expose registration details in its course-tool menu, restart
 this probe and create a course activity using the previously registered tool.
 Open that activity from ByCS. Its configured login URL must be
-`https://ltitest.schulzeug.eu:55531/lti/login`.
+`https://ltitest.schulzeug.eu/lti/login`.
 
 The diagnostic page displays only `iss`, `client_id` and `lti_deployment_id`
 when supplied. It neither stores request data nor logs hints, JWTs or cookies.
@@ -116,7 +116,7 @@ in WSL on port 8443. It reads `.local/bycs/registration.json` (override with
 
 ```json
 {
-  "tool_origin": "https://ltitest.schulzeug.eu:55531",
+  "tool_origin": "https://ltitest.schulzeug.eu",
   "issuer": "https://lernplattform.bycs.de",
   "client_id": "YOUR_CLIENT_ID",
   "deployment_id": "YOUR_DEPLOYMENT_ID",
@@ -203,9 +203,9 @@ Restart the integration runner after updating the code, keeping the SSH tunnel
 open. Edit the existing ByCS tool registration:
 
 - Enable **Unterstützt Deep Linking (Content-Item Message)**.
-- Set **Inhalts-URL** to `https://ltitest.schulzeug.eu:55531/activity`.
-- Keep **Umleitungs-URI(s)** as `https://ltitest.schulzeug.eu:55531/lti/launch`.
-- Keep the public keyset at `https://ltitest.schulzeug.eu:55531/lti/jwks`.
+- Set **Inhalts-URL** to `https://ltitest.schulzeug.eu/activity`.
+- Keep **Umleitungs-URI(s)** as `https://ltitest.schulzeug.eu/lti/launch`.
+- Keep the public keyset at `https://ltitest.schulzeug.eu/lti/jwks`.
 - Keep a new-window launch container initially and leave services disabled.
 
 The content-selection target intentionally matches the existing allowed resource
@@ -270,3 +270,20 @@ application referrer policies. Only the origin is disclosed, with no path or
 query string. The return-to-platform form keeps `no-referrer`.
 Missing, null and foreign origins still fail, as do missing cookies or invalid
 CSRF tokens. Restart the runner and begin a fresh selection to retest.
+
+
+### Migration to HTTPS port 443
+
+The tester moved the public SSH listener to port 443 on another IP, keeping the
+hostname. The local integration configuration now uses
+`https://ltitest.schulzeug.eu`; the WSL destination remains 127.0.0.1:8443.
+Restart the runner after changing its configuration. Update all ByCS tool URLs
+(login, redirect, activity/content and JWKS) to omit the old port, and update
+existing activity URLs where needed. Start a fresh selection rather than reuse
+a pending launch from the old origin. The hostname certificate and existing
+LTI signing key can stay in use.
+
+This follows a ByCS `fix_jwks_alg(): ... array, null given` error on the Deep
+Linking return. The old public JWKS URL returned HTTP 200 and valid JSON during
+our check, but this did not prove reachability from ByCS itself. A server-side
+port restriction is a hypothesis, not a confirmed ByCS configuration.

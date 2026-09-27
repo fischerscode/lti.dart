@@ -27,7 +27,7 @@ Future<void> main() async {
   );
   server.idleTimeout = const Duration(seconds: 15);
   stdout.writeln('HTTPS probe listening on WSL 127.0.0.1:${server.port}.');
-  stdout.writeln('Public URL: https://ltitest.schulzeug.eu:55531/health');
+  stdout.writeln('Public URL: https://ltitest.schulzeug.eu/health');
   stdout.writeln(
     'Login diagnosis: /lti/login. Launch verification is not active.',
   );
