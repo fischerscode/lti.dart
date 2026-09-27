@@ -66,12 +66,10 @@ Publish **lti first**, then **lti_shelf**, from the workspace root:
 These commands actually publish when you confirm the interactive publish prompts.
 Use them only for the initial account-authorized publication. Push the first
 release commit/tags and create the GitHub releases too, so future Melos runs have
-release history. For this initial manual release, the publish dry-run and upload
-steps in `.github/workflows/publish.yml` are temporarily commented out. Commit
-that workflow state before running `melos version` so the initial tags contain it.
-After publishing both packages, pushing the initial tags and configuring pub.dev
-automated publishing, uncomment both steps and commit the change for subsequent
-releases. Keep the initial tags unchanged.
+release history. For the initial manual release, the publish dry-run and upload
+steps were disabled in the release tags to avoid duplicate publication attempts.
+They are now enabled for subsequent releases. Keep the initial tags unchanged;
+each tag uses the workflow committed at that revision.
 
 ## Normal release
 
@@ -130,8 +128,7 @@ publishing as soon as the tags arrive.
 
 `.github/workflows/publish.yml` runs only for `lti-v*` and `lti_shelf-v*` tag pushes.
 It first calls the normal CI workflow, including analysis, tests, formatting and
-API documentation checks. Once the two publishing steps are re-enabled after
-the manual first release, publishing runs only if that check job succeeds.
+API documentation checks. Publishing runs only if that check job succeeds.
 
 The publish job checks the exact tag/package version match, current changelog,
 license and repository metadata. It publishes only the package named by that tag,
