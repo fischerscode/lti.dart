@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add scoped OAuth client-credentials token requests with signed assertions, bounded cache, expiry, coalescing and safe errors.
+
 - Normalize standard legacy context names and URNs for Moodle-compatible launches.
 
 - Identify failing claim checks and field names without exposing claim values.

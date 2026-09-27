@@ -14,7 +14,7 @@ protocol library and HTTP adapters, not a learning application or an LMS.
 The implementation supports manually registered platforms, OIDC login,
 RS256-verified resource launches, typed Core claims, tool signing and public
 JWKS with rotation and Deep Linking selection/return messages. AGS, NRPS and
-dynamic registration are not yet implemented. OAuth assertions are available; the access-token client is pending.
+dynamic registration are not yet implemented. Scoped OAuth access-token requests and caching are implemented; see [service authentication](docs/oauth.md).
 Live ByCS resource launch and Deep Linking selection/return followed by a marked
 resource launch, plus cancellation, were reported successful on 2026-09-27 using a directly configured
 RSA public key. ByCS retrieval of tool JWKS, service access and

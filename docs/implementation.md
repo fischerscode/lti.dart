@@ -18,7 +18,7 @@ errata decisions, tested behavior and remaining integration obligations.
 | Production storage adapters | Pending | Shared SQL/Redis transactions and backend-specific atomicity tests |
 | Tool signing and public JWKS | Implemented | Local JWK/PEM and external signer contract, envelopes, public-only route and staged rotation |
 | Deep Linking 2.0 | Implemented; ByCS resource selection round trip reported | Verified selection, five content types, negotiation, opaque data echo, signed POST form; see [scope and limitations](deep-linking.md) |
-| OAuth service access | Partial | Client assertion signing implemented; scoped token requests, cache, failures and destination policy pending |
+| OAuth service access | Token client implemented | Signed assertions, exact-scope bounded cache, concurrent fetch coalescing, expiry, bounded transport and safe errors; live ByCS token test and service-destination policy pending; see [OAuth](oauth.md) |
 | AGS 2.0 | Pending | Line item CRUD, score submission, results, scopes, media types and pagination |
 | NRPS 2.0 | Pending | Membership pages, roles/status, filters and optional personal fields |
 | Cookie-restricted iframe flow | Partial | Opt-in partitioned cookies; one ByCS selection iframe flow reported successful; browser/policy coverage pending |

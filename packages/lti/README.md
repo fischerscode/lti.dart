@@ -7,7 +7,8 @@ RS256/JWKS verification, replay-protected resource launches and typed launch dat
 Deep Linking selection requests and signed responses are also supported.
 It is **not yet a complete LTI 1.3 implementation**: AGS, NRPS and dynamic
 registration remain planned. Tool signing, OAuth client assertions and public-key
-rotation are available through `LtiJwtSigner`; access-token requests are pending.
+rotation are available through `LtiJwtSigner`. `LtiOAuthClient` requests and caches
+scoped client-credentials access tokens using that signer.
 
 Create `LtiTool` with a registration store, transaction store and
 `RemoteJwksVerifier`. Call `beginLogin`, retain the returned browser binding in
