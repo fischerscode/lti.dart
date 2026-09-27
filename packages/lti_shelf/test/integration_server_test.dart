@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -117,6 +118,85 @@ void main() {
       expect(
         (await brokenObserver(
           Request('GET', Uri.parse('https://tool.example/lti/jwks')),
+        )).statusCode,
+        200,
+      );
+    },
+  );
+
+  test(
+    'access log covers unknown paths and omits queries and headers',
+    () async {
+      final messages = <String>[];
+      final logged = integrationHandler(
+        tool: platform.tool,
+        origin: Uri.parse('https://tool.example'),
+        platformOrigin: Uri.parse('https://platform.example'),
+        onAccessRequest: messages.add,
+      );
+      for (final path in ['/health', '/wrong/jwks', '/lti/jwks/']) {
+        final response = await logged(
+          Request(
+            'GET',
+            Uri.parse('https://tool.example$path?token=PRIVATE_QUERY'),
+            headers: {'cookie': 'PRIVATE_COOKIE'},
+          ),
+        );
+        expect(response.statusCode, path == '/health' ? 200 : 404);
+      }
+      expect(messages, hasLength(6));
+      expect(messages.join(), isNot(contains('PRIVATE')));
+      final first = jsonDecode(messages.first.substring(5)) as Map;
+      expect(first['path'], '/health');
+      expect(first['event'], 'received');
+      expect(
+        (jsonDecode(messages[2].substring(5)) as Map)['path'],
+        '/wrong/jwks',
+      );
+      expect((jsonDecode(messages[3].substring(5)) as Map)['status'], 404);
+    },
+  );
+
+  test(
+    'access log observes arrival before completion without consuming body',
+    () async {
+      final messages = <String>[];
+      final released = Completer<void>();
+      final logged = withAccessDiagnostics((request) async {
+        await released.future;
+        expect(await request.readAsString(), 'PRIVATE_BODY');
+        return Response.ok('done');
+      }, messages.add);
+      final pending = logged(
+        Request(
+          'POST',
+          Uri.parse('https://tool.example/test'),
+          body: 'PRIVATE_BODY',
+        ),
+      );
+      expect(messages, hasLength(1));
+      expect(messages.single, contains('"event":"received"'));
+      released.complete();
+      expect((await pending).statusCode, 200);
+      expect(messages, hasLength(2));
+      expect(messages.join(), isNot(contains('PRIVATE')));
+      final failed = withAccessDiagnostics(
+        (_) => throw StateError('PRIVATE_FAILURE'),
+        messages.add,
+      );
+      await expectLater(
+        failed(Request('GET', Uri.parse('https://tool.example/test'))),
+        throwsStateError,
+      );
+      expect(messages.last, contains('"event":"failed"'));
+      expect(messages.join(), isNot(contains('PRIVATE')));
+      final brokenObserver = withAccessDiagnostics(
+        (_) => Response.ok('ok'),
+        (_) => throw StateError('observer failed'),
+      );
+      expect(
+        (await brokenObserver(
+          Request('GET', Uri.parse('https://tool.example/test')),
         )).statusCode,
         200,
       );

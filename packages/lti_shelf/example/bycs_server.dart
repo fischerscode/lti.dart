@@ -63,6 +63,9 @@ Future<void> main() async {
       tool: tool,
       origin: origin,
       platformOrigin: Uri.parse(registration.issuer),
+      onAccessRequest: Platform.environment['BYCS_ACCESS_LOG'] == '1'
+          ? (message) => stdout.writeln(message)
+          : null,
       onJwksRequest: Platform.environment['BYCS_JWKS_DIAGNOSTICS'] == '1'
           ? (message) => stdout.writeln(message)
           : null,
@@ -79,6 +82,11 @@ Future<void> main() async {
   if (Platform.environment['BYCS_JWKS_DIAGNOSTICS'] == '1') {
     stdout.writeln(
       'JWKS diagnostics enabled: fixed route, method, probe label and response status only.',
+    );
+  }
+  if (Platform.environment['BYCS_ACCESS_LOG'] == '1') {
+    stdout.writeln(
+      'HTTP access log enabled: arrival and response for every HTTP request; no query values, headers or bodies.',
     );
   }
   final stopped = Completer<void>();
@@ -109,6 +117,7 @@ Handler integrationHandler({
   required Uri origin,
   required Uri platformOrigin,
   void Function(String message)? onJwksRequest,
+  void Function(String message)? onAccessRequest,
 }) {
   if (platformOrigin.scheme != 'https' || platformOrigin.host.isEmpty) {
     throw ArgumentError('An HTTPS platform origin is required.');
@@ -172,7 +181,7 @@ Handler integrationHandler({
     }
   }
 
-  return (request) async {
+  return withAccessDiagnostics((request) async {
     final response = await handle(request);
     if (request.url.path == 'lti/jwks' && onJwksRequest != null) {
       // The label helps correlate a deliberate test, but does not identify its
@@ -204,5 +213,56 @@ Handler integrationHandler({
         'content-security-policy': csp == null ? ancestors : '$csp; $ancestors',
       },
     );
+  }, onAccessRequest);
+}
+
+/// Logs arrival before dispatch, even if the handler stalls or throws.
+/// Request IDs correlate events within this process, not users or sessions.
+Handler withAccessDiagnostics(
+  Handler handler,
+  void Function(String message)? observer,
+) {
+  if (observer == null) return handler;
+  var sequence = 0;
+  void emit(Map<String, Object> event) {
+    try {
+      observer(
+        'HTTP ${jsonEncode({'time': DateTime.now().toUtc().toIso8601String(), ...event})}',
+      );
+    } catch (_) {
+      // Observability must not affect request handling.
+    }
+  }
+
+  String bounded(String value, int limit) =>
+      value.length <= limit ? value : '${value.substring(0, limit)}…';
+  return (request) async {
+    final id = ++sequence;
+    final timer = Stopwatch()..start();
+    emit({
+      'event': 'received',
+      'id': id,
+      'method': bounded(request.method, 32),
+      'path': bounded(request.requestedUri.path, 1024),
+    });
+    try {
+      final response = await handler(request);
+      emit({
+        'event': 'response',
+        'id': id,
+        'status': response.statusCode,
+        'elapsed_ms': timer.elapsedMilliseconds,
+      });
+      return response;
+    } catch (_) {
+      emit({
+        'event': 'failed',
+        'id': id,
+        'elapsed_ms': timer.elapsedMilliseconds,
+      });
+      rethrow;
+    } finally {
+      timer.stop();
+    }
   };
 }

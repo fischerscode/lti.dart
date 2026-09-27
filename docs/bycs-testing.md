@@ -376,3 +376,24 @@ tokens and cookies are excluded. Logging is off without the environment flag.
 
 Keep direct RSA mode available for functional testing. No change to signature
 verification or key material is needed for these diagnostics.
+
+
+### Logging all incoming HTTP requests
+
+To detect incorrect keyset paths as well as the expected JWKS route, restart with:
+
+```sh
+BYCS_ACCESS_LOG=1 BYCS_JWKS_DIAGNOSTICS=1 fvm dart run packages/lti_shelf/example/bycs_server.dart
+```
+
+Each HTTP request emits a JSON `HTTP` received event before dispatch, followed by
+a response event with the same process-local ID, status and elapsed milliseconds.
+Unhandled exceptions emit a failed event without exception contents. Paths and
+methods are bounded and JSON-escaped; query strings, headers and bodies are not
+logged or consumed. Paths themselves remain visible, including unknown routes.
+The existing JWKS log retains its allowlisted test label.
+
+A response event means a handler produced a response, not that the peer received
+the complete body. Connections failing before HTTP dispatch (including TLS
+handshake failures) are not visible here. SSH forwarding does not preserve the
+original peer address for attributing an HTTP request to ByCS.
