@@ -3,20 +3,40 @@ import 'dart:convert';
 import 'errors.dart';
 import 'models.dart';
 
+/// Claim names for LTI Deep Linking requests and responses.
 abstract final class LtiDeepLinkingClaims {
+  /// Namespace for Deep Linking claim names.
   static const prefix = 'https://purl.imsglobal.org/spec/lti-dl/claim/';
+
+  /// Claim containing the platform's selection capabilities and return URL.
   static const settings = '${prefix}deep_linking_settings';
+
+  /// Response claim containing the selected content item array.
   static const contentItems = '${prefix}content_items';
+
+  /// Opaque platform data echoed unchanged into the signed response.
   static const data = '${prefix}data';
+
+  /// Optional human-readable success message returned to the platform.
   static const message = '${prefix}msg';
+
+  /// Optional diagnostic message intended for the platform's logs.
   static const log = '${prefix}log';
+
+  /// Optional human-readable error returned to the platform.
   static const errorMessage = '${prefix}errormsg';
+
+  /// Optional error detail intended for the platform's logs.
   static const errorLog = '${prefix}errorlog';
 }
 
 /// Capabilities supplied in a signed selection request. Unknown types and
 /// document targets are retained so extensions can be negotiated explicitly.
 final class LtiDeepLinkingSettings {
+  /// Parses and snapshots settings from a verified Deep Linking request.
+  ///
+  /// Requires an HTTPS return URL and string arrays for accepted types and
+  /// presentation targets. Throws [LtiException] on malformed settings.
   LtiDeepLinkingSettings.fromJson(Map<String, Object?> json)
     : raw = freezeJson(json) as Map<String, Object?> {
     requiredString(raw, 'deep_link_return_url');
@@ -32,17 +52,43 @@ final class LtiDeepLinkingSettings {
     title = optionalString(raw, 'title');
     text = optionalString(raw, 'text');
   }
+
+  /// Deeply immutable settings, including unknown extension properties.
   final Map<String, Object?> raw;
+
+  /// HTTPS platform destination for posting the signed selection response.
   late final Uri returnUrl;
+
+  /// Immutable list of content item types the platform can accept.
   late final List<String> acceptTypes;
+
+  /// Accepted presentation targets, including any negotiated extensions.
   late final List<String> acceptPresentationDocumentTargets;
+
+  /// Comma-separated MIME ranges for files, or null when unrestricted.
   late final String? acceptMediaTypes;
+
+  /// Whether multiple selected items may be returned; defaults to false.
   late final bool acceptMultiple;
+
+  /// Platform hint for line-item acceptance, or null if unspecified.
+  /// This hint is exposed to the application and is not a selection rejection rule.
   late final bool? acceptLineItem;
+
+  /// Whether the platform requests automatic creation; defaults to false.
+  /// This is a hint for the host selection UI, not an automatic action.
   late final bool autoCreate;
+
+  /// Optional title suggested by the platform for the selected content.
   late final String? title;
+
+  /// Optional descriptive text suggested by the platform.
   late final String? text;
+
+  /// Whether opaque return data was supplied, including an explicit null.
   bool get hasData => raw.containsKey('data');
+
+  /// Opaque value to echo unchanged when [hasData] is true; may be null.
   Object? get data => raw['data'];
 
   bool? _boolean(String key) {
@@ -55,6 +101,11 @@ final class LtiDeepLinkingSettings {
     );
   }
 
+  /// Checks [items] against multiplicity, types, presentation and file MIME ranges.
+  ///
+  /// An empty list represents cancellation and is allowed. Throws [ArgumentError]
+  /// for incompatible selections. This does not authorize the user's choice or
+  /// enforce application policy; inspect other platform hints in the host UI.
   void validateSelection(List<LtiContentItem> items) {
     if (!acceptMultiple && items.length > 1) {
       throw ArgumentError('The platform accepts at most one item.');
@@ -91,10 +142,16 @@ final class LtiDeepLinkingSettings {
   }
 }
 
-/// Immutable content item. Named constructors cover standard types; [fromJson]
+/// Immutable content item. Named constructors cover standard types; [LtiContentItem.fromJson]
 /// also supports extension properties and fully-qualified extension type URLs.
 /// URLs follow this library's HTTPS-only resource policy.
 final class LtiContentItem {
+  /// Snapshots and validates a standard or extension content item.
+  ///
+  /// [mediaType] is a local file MIME hint, not a serialized File property.
+  /// Unknown properties are retained; extension types must be HTTPS URLs.
+  /// Malformed fields throw [ArgumentError] or [LtiException]; non-JSON data
+  /// fails JSON encoding. Embedded HTML is not sanitized by this constructor.
   LtiContentItem.fromJson(Map<String, Object?> json, {this.mediaType})
     : _json = freezeJson(jsonDecode(jsonEncode(json))) as Map<String, Object?> {
     final type = requiredString(_json, 'type');
@@ -184,6 +241,12 @@ final class LtiContentItem {
     }
   }
 
+  /// Creates a tool resource selection, optionally with gradebook metadata.
+  ///
+  /// [url] may be omitted for platform-defined resolution. [custom] contains
+  /// string values sent on later launches. [properties] supplies extra fields;
+  /// explicit constructor fields take precedence. Selection acceptance is checked
+  /// when building the response, not here.
   factory LtiContentItem.ltiResourceLink({
     Uri? url,
     String? title,
@@ -200,6 +263,11 @@ final class LtiContentItem {
     'custom': custom,
     'lineItem': ?lineItem?.toJson(),
   });
+
+  /// Creates an ordinary HTTPS link, without LTI launch authentication.
+  ///
+  /// [properties] may contain validated presentation hints such as `iframe` or
+  /// `window`. Explicit constructor fields override matching properties.
   factory LtiContentItem.link({
     required Uri url,
     String? title,
@@ -212,6 +280,12 @@ final class LtiContentItem {
     'title': ?title,
     'text': ?text,
   });
+
+  /// Creates a downloadable HTTPS file selection.
+  ///
+  /// Supply [mediaType] when the platform restricts accepted MIME types.
+  /// [expiresAt] is serialized in UTC. [properties] retains additional fields;
+  /// explicit constructor fields take precedence. This does not upload a file.
   factory LtiContentItem.file({
     required Uri url,
     String? title,
@@ -227,6 +301,11 @@ final class LtiContentItem {
     'text': ?text,
     'expiresAt': ?expiresAt?.toUtc().toIso8601String(),
   }, mediaType: mediaType);
+
+  /// Creates an HTML content selection with optional display metadata.
+  ///
+  /// [html] is carried as supplied and is not sanitized. The host application
+  /// must ensure content is appropriate for the destination platform.
   factory LtiContentItem.html({
     required String html,
     String? title,
@@ -237,6 +316,11 @@ final class LtiContentItem {
     'title': ?title,
     'text': ?text,
   });
+
+  /// Creates an HTTPS image selection with optional pixel dimensions.
+  ///
+  /// [width] and [height] must be nonnegative when supplied. [properties] adds
+  /// extra fields; explicit constructor fields take precedence.
   factory LtiContentItem.image({
     required Uri url,
     String? title,
@@ -255,8 +339,14 @@ final class LtiContentItem {
   });
 
   final Map<String, Object?> _json;
+
+  /// Local file MIME hint used for negotiation; excluded from serialized JSON.
   final String? mediaType;
+
+  /// Standard content type name or fully qualified extension type URL.
   String get type => _json['type']! as String;
+
+  /// Returns the deeply immutable content item payload for a signed response.
   Map<String, Object?> toJson() => _json;
 
   static void _url(String value) {
@@ -289,7 +379,15 @@ final class LtiContentItem {
   }
 }
 
+/// Gradebook-column proposal attached to a Deep Linking resource selection.
+///
+/// This differs from an AGS line item: the platform creates the actual column
+/// when accepting the selection, rather than through a service call here.
 final class LtiDeepLinkingLineItem {
+  /// Creates a column proposal with a positive finite [scoreMaximum].
+  ///
+  /// Throws [ArgumentError] for an invalid maximum. Optional metadata is
+  /// passed to the platform when the containing resource selection is accepted.
   LtiDeepLinkingLineItem({
     required this.scoreMaximum,
     this.label,
@@ -301,11 +399,23 @@ final class LtiDeepLinkingLineItem {
       throw ArgumentError('A positive score maximum is required.');
     }
   }
+
+  /// Positive finite maximum points for this gradebook column.
   final num scoreMaximum;
+
+  /// Display label for the gradebook column.
   final String? label;
+
+  /// Optional tool-defined resource identifier shared across related columns.
   final String? resourceId;
+
+  /// Optional tool-defined category or lookup tag for this column.
   final String? tag;
+
+  /// Optional hint indicating whether grades are released to learners.
   final bool? gradesReleased;
+
+  /// Returns the unmodifiable wire representation for this line item.
   Map<String, Object?> toJson() => Map.unmodifiable({
     'scoreMaximum': scoreMaximum,
     'label': ?label,
@@ -317,10 +427,20 @@ final class LtiDeepLinkingLineItem {
 
 /// Browser return message. Use the uppercase JWT form field, never a GET query.
 final class LtiDeepLinkingResponse {
+  /// Wraps a signed [jwt] and its HTTPS [returnUrl].
+  ///
+  /// Throws [ArgumentError] for an unsafe return URL. This constructor does not
+  /// verify the JWT; use the tool response builder to produce a signed selection.
   LtiDeepLinkingResponse({required this.returnUrl, required this.jwt}) {
     LtiContentItem._url(returnUrl.toString());
   }
+
+  /// HTTPS platform endpoint that must receive the browser form POST.
   final Uri returnUrl;
+
+  /// Signed response credential; never place it in logs or a GET query.
   final String jwt;
+
+  /// Immutable form fields with uppercase `JWT`, as required by Deep Linking.
   Map<String, String> get formFields => Map.unmodifiable({'JWT': jwt});
 }

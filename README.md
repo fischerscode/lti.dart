@@ -39,6 +39,7 @@ fvm install
 fvm dart pub get
 fvm dart run melos bootstrap
 fvm dart run melos run analyze
+fvm dart run melos run docs
 fvm dart run melos run test --no-select
 fvm dart run melos run format:check
 ```

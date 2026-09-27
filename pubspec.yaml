@@ -20,6 +20,10 @@ melos:
       run: dart format .
     format:check:
       run: dart format --output=none --set-exit-if-changed .
+    docs:
+      run: >-
+        dart doc --validate-links --output build/api/lti packages/lti &&
+        dart doc --validate-links --output build/api/lti_shelf packages/lti_shelf
     test:
       exec:
         command: dart test

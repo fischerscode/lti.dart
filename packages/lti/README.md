@@ -24,9 +24,30 @@ an atomic shared implementation of `LtiTransactionStore`.
 
 Use `completeLaunch` to dispatch both message types. For a verified
 `LtiDeepLinkingLaunch`, call `createDeepLinkingResponse` with immutable
-`LtiContentItem` selections (or an empty list to cancel). The repository
-[Deep Linking guide](../../docs/deep-linking.md) describes negotiation, application
-session responsibilities and current interoperability limitations.
+`LtiContentItem` selections (or an empty list to cancel). The builder validates
+selection capabilities and echoes the platform's opaque data. Keep the verified
+launch in a protected server session and authorize each selection action.
+
+## API documentation
+
+Public classes, constructors, fields and operations have Dartdocs available in
+IDE tooltips and generated API pages. Start with `LtiTool` for login and launch
+validation, `LtiJwtSigner` for signing, and `LtiServiceClient` for service access.
+The service API documents required scopes, pagination, errors and write semantics.
+
+For example, after authorizing the user, read memberships from a service client
+created from a verified launch and administrator-configured allowed origins:
+
+```dart
+await for (final member in services.nrps.allMemberships(limit: 100)) {
+  // Use member.userId with the platform issuer as the account identity.
+  // Profile fields may be null; member.roles normalizes known short roles.
+}
+```
+
+A null `LtiScore.scoreGiven` **clears** a previous score. Persist increasing score
+update timestamps per learner/column. Service writes are not automatically retried;
+a failed HTTP request may already have changed platform data.
 
 
 The Core/Advantage protocol surface is implemented and tested locally; it is

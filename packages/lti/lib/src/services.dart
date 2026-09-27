@@ -8,40 +8,83 @@ import 'oauth.dart';
 import 'service_models.dart';
 import 'tool.dart';
 
+/// Stable categories for service capability, transport and response failures.
 enum LtiServiceErrorCode {
+  /// Transport failure, timeout, rate limiting, or a platform 5xx response.
   unavailable,
+
+  /// The service returned a status not accepted by the requested operation.
   rejected,
+
+  /// The response media type, JSON, fields or pagination were invalid.
   invalidResponse,
+
+  /// An endpoint violates HTTPS or configured origin restrictions.
   untrustedDestination,
+
+  /// The verified launch lacks the endpoint, scope or version required.
   missingCapability,
+
+  /// Pagination exceeded the page limit or repeated a previously visited URL.
   paginationLimit,
 }
 
 /// Safe categories only; no platform values or personal data.
 enum LtiServiceResponseIssue {
+  /// The response does not use the expected service media type.
   contentType,
+
+  /// The response body exceeds the configured byte limit.
   responseSize,
+
+  /// The response cannot be decoded as UTF-8 JSON.
   json,
+
+  /// The service payload fails its model validation.
   payload,
+
+  /// A pagination Link header is malformed or ambiguous.
   pagination,
+
+  /// The NRPS root object or container identifier is invalid.
   membershipContainer,
+
+  /// The NRPS context object or its identifier is invalid.
   membershipContext,
+
+  /// The membership context ID differs from the verified launch context.
   contextMismatch,
+
+  /// The NRPS members field is not an array.
   members,
+
+  /// A member entry is malformed; inspect the exception's member-field detail.
   member,
+
+  /// A normal membership page contains a deleted entry reserved for differences.
   membershipStatus,
 }
 
+/// Redacted service failure containing fixed categories rather than response data.
 final class LtiServiceException implements Exception {
+  /// Creates a service failure with optional HTTP and validation metadata.
   const LtiServiceException(
     this.code, {
     this.statusCode,
     this.responseIssue,
     this.memberField,
   });
+
+  /// Stable failure category for application error handling.
   final LtiServiceErrorCode code;
+
+  /// HTTP status when available; null for failures without captured status.
   final int? statusCode;
+
+  /// Fixed validation category for an invalid response, when available.
   final LtiServiceResponseIssue? responseIssue;
+
+  /// Fixed NRPS field category when a member failed validation; otherwise null.
   final LtiMemberField? memberField;
   @override
   String toString() =>
@@ -52,6 +95,16 @@ final class LtiServiceException implements Exception {
 /// by the administrator, never copied from a claim or a service response.
 /// The caller owns the HTTP client. Application authorization remains required.
 final class LtiServiceClient {
+  /// Binds service calls to one verified [launch] and trusted [allowedOrigins].
+  ///
+  /// Origins must be administrator-configured HTTPS origins without paths,
+  /// queries or fragments. Never build this allowlist from launch claims.
+  /// Invalid configuration throws [ArgumentError] or [FormatException].
+  /// [client] remains caller-owned. Requests do not follow redirects or retry.
+  ///
+  /// The origin policy does not pin DNS/IP addresses; production deployments
+  /// should enforce network egress restrictions. Application authorization is
+  /// required before accessing rosters or changing grades.
   LtiServiceClient({
     required this.launch,
     required this.oauth,
@@ -76,14 +129,33 @@ final class LtiServiceClient {
       throw ArgumentError('Invalid service client limits.');
     }
   }
+
+  /// Verified launch that supplies registration, deployment and service claims.
   final LtiLaunch launch;
+
+  /// Reusable token client; tokens are requested with the required operation scope.
   final LtiOAuthClient oauth;
+
+  /// Caller-owned HTTP transport used for service requests.
   final http.Client client;
+
+  /// Immutable normalized trusted HTTPS origins for credential-bearing requests.
   final Set<String> allowedOrigins;
+
+  /// Deadline for each service HTTP request and body read; default 10 seconds.
+  /// OAuth token acquisition has its own independently configured timeout.
   final Duration timeout;
+
+  /// Maximum bytes read from a JSON service response; defaults to one MiB.
   final int maxResponseBytes;
+
+  /// Maximum pages fetched by each automatic pagination stream; defaults to 100.
   final int maxPages;
+
+  /// AGS client bound to this launch; capability checks occur on operation use.
   LtiAgsClient get ags => LtiAgsClient._(this);
+
+  /// NRPS client bound to this launch; capability checks occur on operation use.
   LtiNrpsClient get nrps => LtiNrpsClient._(this);
 
   void _check(Uri uri, {Uri? pageOrigin}) {
@@ -333,14 +405,28 @@ Uri _append(Uri uri, String suffix) => uri.replace(
       '${uri.path.endsWith('/') ? uri.path.substring(0, uri.path.length - 1) : uri.path}/$suffix',
 );
 
+/// Assignment and Grade Services operations for a verified launch.
+///
+/// Obtain from [LtiServiceClient.ags]. Operations require the advertised
+/// endpoint and scope and can throw [LtiServiceException] or [LtiOAuthException].
+/// Reads prefer the read-only line-item scope when advertised; writes are
+/// never automatically retried, even after a timeout or rejected token.
 final class LtiAgsClient {
   LtiAgsClient._(this._service);
   final LtiServiceClient _service;
+
+  /// Wire media type for a single AGS gradebook column.
   static const lineItemMediaType = 'application/vnd.ims.lis.v2.lineitem+json';
+
+  /// Wire media type for an AGS gradebook-column collection.
   static const lineItemsMediaType =
       'application/vnd.ims.lis.v2.lineitemcontainer+json';
+
+  /// Wire media type for a collection of platform-computed results.
   static const resultsMediaType =
       'application/vnd.ims.lis.v2.resultcontainer+json';
+
+  /// Wire media type for publishing an AGS score update.
   static const scoreMediaType = 'application/vnd.ims.lis.v1.score+json';
   LtiAgsEndpoints get _cap =>
       _service.launch.ags ??
@@ -365,6 +451,14 @@ final class LtiAgsClient {
       _cap.lineItem ??
       (throw const LtiServiceException(LtiServiceErrorCode.missingCapability));
 
+  /// Reads one page of gradebook columns using an advertised line-item scope.
+  ///
+  /// [resourceLinkId], [resourceId] and [tag] filter the initial request.
+  /// [limit] is a positive page-size hint, not a guaranteed count.
+  /// When [page] is supplied, its opaque URL replaces filters and pagination
+  /// parameters and must share the configured collection origin.
+  /// Throws [ArgumentError] for a nonpositive limit; see [LtiAgsClient] for
+  /// service errors. Follow the returned page's next link or use [allLineItems].
   Future<LtiServicePage<LtiLineItem>> lineItems({
     String? resourceLinkId,
     String? resourceId,
@@ -403,6 +497,12 @@ final class LtiAgsClient {
     });
   }
 
+  /// Lazily streams columns across pages, applying filters to the initial URL.
+  ///
+  /// [limit] must be positive when supplied. Next links are followed unchanged.
+  /// A page cycle or the configured page bound emits [LtiServiceException].
+  /// Earlier items may already have been delivered when a later page fails.
+  /// The stream performs network requests only when listened to.
   Stream<LtiLineItem> allLineItems({
     String? resourceLinkId,
     String? resourceId,
@@ -428,6 +528,10 @@ final class LtiAgsClient {
     return item;
   }
 
+  /// Reads one gradebook column from [lineItem] or the launch's single-item URL.
+  ///
+  /// Fails with [LtiServiceException] when no endpoint or suitable read scope
+  /// is advertised. The URL must satisfy the service origin policy.
   Future<LtiLineItem> getLineItem({Uri? lineItem}) async {
     final reply = await _service._send(
       'GET',
@@ -439,6 +543,12 @@ final class LtiAgsClient {
     return _parse(() => _lineItem(reply.data));
   }
 
+  /// Creates a gradebook column and returns the platform definition with its ID.
+  ///
+  /// Requires the full line-item scope. [item] must have no ID or this throws
+  /// [ArgumentError]. A failed request may still have created a column on the
+  /// platform; reconcile using your own resource ID/tag before retrying.
+  /// See [LtiAgsClient] for service and OAuth failures.
   Future<LtiLineItem> createLineItem(LtiLineItem item) async {
     if (item.id != null) {
       throw ArgumentError('New line items cannot specify an ID.');
@@ -454,7 +564,22 @@ final class LtiAgsClient {
     return _parse(() => _lineItem(reply.data));
   }
 
-  /// PUT replaces the entire definition. Preserve the current id/resource link.
+  /// Replaces the full column definition at [original]'s platform ID.
+  ///
+  /// Requires the full line-item scope. [original] must have an ID;
+  /// [replacement] may omit its ID but cannot change the ID or resource-link
+  /// binding. Invalid identities throw [ArgumentError]. Preserve fields and
+  /// extensions you wish to keep; this is PUT, not a partial patch.
+  ///
+  /// Returns the platform's resulting definition. There are no retries;
+  /// [LtiServiceException] and [LtiOAuthException] report remote failures.
+  ///
+  /// ```dart
+  /// final updated = await services.ags.updateLineItem(
+  ///   existing,
+  ///   LtiLineItem.fromJson({...existing.json, 'label': 'Revised title'}),
+  /// );
+  /// ```
   Future<LtiLineItem> updateLineItem(
     LtiLineItem original,
     LtiLineItem replacement,
@@ -477,6 +602,12 @@ final class LtiAgsClient {
     return _parse(() => _lineItem(reply.data));
   }
 
+  /// Deletes [lineItem], defaulting to the launch's single-item URL.
+  ///
+  /// Requires the full line-item scope. This may remove associated grades;
+  /// the application must authorize the action and track item ownership.
+  /// There are no automatic retries. Service failures throw [LtiServiceException]
+  /// or [LtiOAuthException].
   Future<void> deleteLineItem({Uri? lineItem}) async {
     await _service._send(
       'DELETE',
@@ -487,8 +618,27 @@ final class LtiAgsClient {
     );
   }
 
-  /// Persist and order monotonically increasing timestamps per line item/user
-  /// in the host application. Writes are never automatically retried.
+  /// Publishes [score] to [lineItem] or the launch's single-item endpoint.
+  ///
+  /// Requires the score scope. A null score value explicitly clears a prior
+  /// score. Completion means the HTTP request was accepted, not that the
+  /// gradebook has already propagated the result; use [results] to read back.
+  ///
+  /// Persist and order increasing timestamps per item/user in the host
+  /// application. Writes are never automatically retried. A transport failure
+  /// may occur after the platform applied the score. Failures are reported as
+  /// [LtiServiceException] or [LtiOAuthException].
+  ///
+  /// ```dart
+  /// await services.ags.publishScore(LtiScore(
+  ///   userId: learnerSubject,
+  ///   timestamp: nextPersistedUpdateTime,
+  ///   activityProgress: LtiActivityProgress.completed,
+  ///   gradingProgress: LtiGradingProgress.fullyGraded,
+  ///   scoreGiven: 80,
+  ///   scoreMaximum: 100,
+  /// ), lineItem: createdItem.id);
+  /// ```
   Future<void> publishScore(LtiScore score, {Uri? lineItem}) async {
     await _service._send(
       'POST',
@@ -501,6 +651,13 @@ final class LtiAgsClient {
     );
   }
 
+  /// Reads one page of platform-computed results for a gradebook column.
+  ///
+  /// [lineItem] defaults to the launch's single-item URL. [userId] optionally
+  /// filters by platform subject. [limit] must be positive when supplied.
+  /// [page] is an opaque continuation URL and replaces initial query filters.
+  /// Requires the result-read scope. The platform may scale or override scores;
+  /// do not assume results equal the values previously submitted.
   Future<LtiServicePage<LtiResult>> results({
     Uri? lineItem,
     String? userId,
@@ -534,6 +691,12 @@ final class LtiAgsClient {
     });
   }
 
+  /// Lazily streams results across pages for [lineItem] and optional [userId].
+  ///
+  /// Uses the same endpoint defaults and scope as [results]. [limit] is a
+  /// positive page-size hint. Streams may emit some results before a later
+  /// request fails; cycles and the configured page bound produce
+  /// [LtiServiceException].
   Stream<LtiResult> allResults({Uri? lineItem, String? userId, int? limit}) {
     _limit(limit);
     return _service._all(
@@ -546,9 +709,16 @@ final class LtiAgsClient {
   }
 }
 
+/// Names and Role Provisioning Services for a verified launch.
+///
+/// Obtain from [LtiServiceClient.nrps]. Requires advertised version `2.0`.
+/// Operations can throw [LtiOAuthException] or [LtiServiceException]; the host
+/// must authorize roster access and handle optional personal fields.
 final class LtiNrpsClient {
   LtiNrpsClient._(this._service);
   final LtiServiceClient _service;
+
+  /// Wire media type for an NRPS 2.0 membership container.
   static const mediaType =
       'application/vnd.ims.lti-nrps.v2.membershipcontainer+json';
   Uri get _endpoint {
@@ -559,6 +729,16 @@ final class LtiNrpsClient {
     return cap.memberships;
   }
 
+  /// Reads one page of memberships, optionally filtered by role or resource.
+  ///
+  /// [role] is passed to the platform unchanged. [resourceLinkId] becomes the
+  /// `rlid` filter. [limit] must be positive when provided. [page] supplies an
+  /// opaque continuation URL, replacing these query filters.
+  ///
+  /// Set [differences] only when reading a changes feed; it permits deleted
+  /// memberships. When a launch has a context, the response ID must match it.
+  /// Service, validation and destination failures throw [LtiServiceException];
+  /// token failures throw [LtiOAuthException].
   Future<LtiServicePage<LtiMember>> memberships({
     String? role,
     String? resourceLinkId,
@@ -635,6 +815,15 @@ final class LtiNrpsClient {
     );
   }
 
+  /// Lazily streams memberships, following same-origin continuation links.
+  ///
+  /// [role], [resourceLinkId] and positive [limit] apply to the initial request.
+  /// Pass a previously returned [differencesUrl] to read changes including
+  /// deleted members; its opaque query replaces the other filters.
+  ///
+  /// A page cycle or configured page limit emits [LtiServiceException].
+  /// Earlier members may already have been delivered when a later page fails.
+  /// Store changes-feed cursors only after successfully processing the stream.
   Stream<LtiMember> allMemberships({
     String? role,
     String? resourceLinkId,

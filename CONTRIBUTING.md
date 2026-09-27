@@ -50,3 +50,25 @@ documented compatibility requirements are met.
 
 The first release establishes package tags; subsequent releases compare against
 them. No release tags or commits are generated automatically by bootstrap or CI.
+
+## Public API documentation
+
+Every public API used by a package consumer needs meaningful English Dartdocs:
+classes, constructors, methods, properties, typedefs and enum values. Explain
+what the consumer needs to know: parameter constraints and defaults, nullable
+values, return values, exceptions, ownership/lifetime, side effects and trust
+boundaries. Do not merely repeat the declaration's name. Inherited API comments
+may document overrides when their contract is unchanged. Add short examples for
+workflows such as launches, selections and service writes.
+
+`public_member_api_docs` and `comment_references` run in normal analysis and CI.
+Generate both packages' API sites and validate links before submitting changes:
+
+```sh
+fvm dart run melos run docs
+```
+
+Open `build/api/lti/index.html` or `build/api/lti_shelf/index.html`. Output stays
+ignored. Both packages treat unresolved documentation references and broken links
+as generation errors. Keep package README links usable in standalone pub.dev
+pages; repository-relative links outside the package do not resolve there.

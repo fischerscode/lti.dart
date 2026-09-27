@@ -1,13 +1,23 @@
 /// LTI 1.3 Appendix A vocabularies. URI values are case-sensitive.
 /// Legacy context names can be explicitly normalized for service responses.
 abstract final class LtiRoles {
+  /// Namespace prefix for standard context-role URIs.
   static const membership = 'http://purl.imsglobal.org/vocab/lis/v2/membership';
+
+  /// Standard context role for a teacher or instructor.
   static const instructor = '$membership#Instructor';
+
+  /// Standard context role for a learner.
   static const learner = '$membership#Learner';
+
+  /// Standard context role for a mentor.
   static const mentor = '$membership#Mentor';
+
+  /// Standard LTI system role identifying a platform test user.
   static const testUser =
       'http://purl.imsglobal.org/vocab/lti/system/person#TestUser';
 
+  /// Immutable set of supported standard system, institution and context roles.
   static final Set<String> standard = Set.unmodifiable({
     for (final role in [
       'Administrator',
@@ -42,6 +52,9 @@ abstract final class LtiRoles {
     testUser,
   });
 
+  /// Whether [role] is an exact standard URI, including defined sub-roles.
+  /// Unknown extension roles and short names return false; this is not an
+  /// application authorization decision.
   static bool isStandard(String role) => standard.contains(role);
 
   /// Recognize only the eight deprecated context role names in Core A.2.3.
@@ -118,6 +131,7 @@ abstract final class LtiRoles {
   };
 }
 
+/// Standard context type URIs and narrowly defined legacy aliases.
 abstract final class LtiContextTypes {
   /// Normalize only the deprecated context aliases listed in Core Appendix A.1.
   /// Unknown extension URIs are preserved; arbitrary short names are not mapped.
@@ -134,13 +148,22 @@ abstract final class LtiContextTypes {
     'urn:lti:context-type:ims/lis/Group': group,
   };
 
+  /// Standard type URI for a reusable course template.
   static const courseTemplate =
       'http://purl.imsglobal.org/vocab/lis/v2/course#CourseTemplate';
+
+  /// Standard type URI for a particular offering of a course.
   static const courseOffering =
       'http://purl.imsglobal.org/vocab/lis/v2/course#CourseOffering';
+
+  /// Standard type URI for a course section.
   static const courseSection =
       'http://purl.imsglobal.org/vocab/lis/v2/course#CourseSection';
+
+  /// Standard type URI for a group context.
   static const group = 'http://purl.imsglobal.org/vocab/lis/v2/course#Group';
+
+  /// The four standard context type URIs accepted by launch validation.
   static const standard = {
     courseTemplate,
     courseOffering,

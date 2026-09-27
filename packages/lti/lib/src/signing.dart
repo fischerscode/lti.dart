@@ -10,6 +10,10 @@ import 'models.dart';
 final class LtiPublicKey {
   LtiPublicKey._(this.keyId, this._modulus, this._exponent);
 
+  /// Imports public RSA fields from [jwk], discarding private/unknown fields.
+  ///
+  /// Requires a key ID, RS256-compatible signing metadata and at least 2048
+  /// RSA bits. Throws [ArgumentError] without exposing the input on failure.
   factory LtiPublicKey.fromJwk(Map<String, Object?> jwk) {
     try {
       if (jwk['kty'] != 'RSA' ||
@@ -39,10 +43,14 @@ final class LtiPublicKey {
     }
   }
 
+  /// Stable public key identifier (`kid`); never reuse for different key material.
   final String keyId;
   final String _modulus;
   final String _exponent;
 
+  /// Returns public verification fields only, suitable for publishing in a JWKS.
+  ///
+  /// Private key material is never included; the top-level map is unmodifiable.
   Map<String, Object?> toJwk() => Map.unmodifiable({
     'kty': 'RSA',
     'kid': keyId,
@@ -73,7 +81,13 @@ final class LtiPublicKey {
 /// Trusted signing integration for local keys, HSMs or external signing services.
 /// [sign] must produce RSASSA-PKCS1-v1_5 with SHA-256 (RS256), not RSA-PSS.
 abstract interface class LtiSigningKey {
+  /// Public verification key corresponding to signatures returned by [sign].
   LtiPublicKey get publicKey;
+
+  /// Signs the exact [signingInput] bytes using RS256.
+  ///
+  /// Return raw signature bytes, not base64 or a JWT. Implementations using
+  /// external services must preserve the input and keep private material secret.
   Future<List<int>> sign(List<int> signingInput);
 }
 
@@ -82,6 +96,10 @@ abstract interface class LtiSigningKey {
 final class RsaLtiSigningKey implements LtiSigningKey {
   RsaLtiSigningKey._(this._key, this.publicKey);
 
+  /// Loads and consistency-checks a private RSA [jwk] for RS256.
+  ///
+  /// Requires public parameters and private exponent; supplied key operations
+  /// must permit signing. Throws a redacted [ArgumentError] for invalid keys.
   factory RsaLtiSigningKey.fromJwk(Map<String, Object?> jwk) {
     try {
       final public = LtiPublicKey.fromJwk(jwk);
@@ -114,6 +132,10 @@ final class RsaLtiSigningKey implements LtiSigningKey {
     }
   }
 
+  /// Loads private RSA [pem] with the explicit public [keyId].
+  ///
+  /// Uses the same size and consistency checks as [RsaLtiSigningKey.fromJwk].
+  /// Throws a redacted [ArgumentError] on invalid input; never log [pem].
   factory RsaLtiSigningKey.fromPem(String pem, {required String keyId}) {
     try {
       return RsaLtiSigningKey.fromJwk(
@@ -137,7 +159,15 @@ final class RsaLtiSigningKey implements LtiSigningKey {
 /// retired verification keys for the required token lifetime/cache overlap.
 /// Implementations may choose a signing key separately for each registration.
 abstract interface class LtiSigningKeyProvider {
+  /// Selects the signing key for trusted [registration].
+  ///
+  /// Its public key must already be published and available to the platform.
   Future<LtiSigningKey> signingKeyFor(LtiRegistration registration);
+
+  /// Returns active and retained verification keys for the public JWKS.
+  ///
+  /// Each key ID must be unique. Keep retired signing keys published until
+  /// all associated tokens and platform caches have expired.
   Future<List<LtiPublicKey>> publicKeys();
 }
 
@@ -145,6 +175,7 @@ abstract interface class LtiSigningKeyProvider {
 /// For multiple server instances, coordinate/persist the same key lifecycle
 /// externally. This implementation retains kid history only for its lifetime.
 final class MemoryLtiSigningKeyProvider implements LtiSigningKeyProvider {
+  /// Starts with [activeKey] and immediately publishes its public key in memory.
   MemoryLtiSigningKeyProvider(LtiSigningKey activeKey) : _active = activeKey {
     publish(activeKey.publicKey);
   }
@@ -196,9 +227,13 @@ final class MemoryLtiSigningKeyProvider implements LtiSigningKeyProvider {
 }
 
 /// Creates bounded-lifetime tool JWT envelopes and OAuth client assertions.
-/// Message-specific payload rules (e.g. Deep Linking) are the caller's job until
-/// the corresponding typed message builder is implemented.
+/// [signMessage] is a low-level envelope builder. For Deep Linking, use the
+/// tool's typed response builder to also validate selection capabilities.
 final class LtiJwtSigner {
+  /// Creates an RS256 JWT signer backed by [keys].
+  ///
+  /// [clock] defaults to the current time. [lifetime] must be between one second
+  /// and five minutes, inclusive, or this throws [ArgumentError].
   LtiJwtSigner({
     required this.keys,
     DateTime Function()? clock,
@@ -210,8 +245,12 @@ final class LtiJwtSigner {
       );
     }
   }
+
+  /// Provider controlling signing key selection and public-key publication.
   final LtiSigningKeyProvider keys;
   final DateTime Function() _clock;
+
+  /// JWT validity duration measured from issuance; defaults to five minutes.
   final Duration lifetime;
   final _random = Random.secure();
 
@@ -219,7 +258,13 @@ final class LtiJwtSigner {
       .encode(List.generate(32, (_) => _random.nextInt(256)))
       .replaceAll('=', '');
 
-  /// Signs the security envelope; this does not validate a message-specific schema.
+  /// Signs a tool message envelope without validating its message-specific schema.
+  ///
+  /// [deploymentId] must belong to [registration]. [claims] must contain only
+  /// JSON values and cannot override security/version/message envelope claims.
+  /// Invalid arguments throw [ArgumentError] or a JSON encoding error.
+  /// A fresh nonce is generated per call. Signing-provider failures propagate;
+  /// invalid signatures or expiry during signing throw [StateError].
   Future<String> signMessage({
     required LtiRegistration registration,
     required String deploymentId,
@@ -246,7 +291,13 @@ final class LtiJwtSigner {
     });
   }
 
-  /// Prepares authentication for a token request; does not request an access token.
+  /// Signs a fresh client assertion for a token request without sending it.
+  ///
+  /// Uses the registration's explicit authorization audience, falling back
+  /// to its token endpoint. Missing audience configuration throws [StateError].
+  /// A supplied [deploymentId] must be registered or [ArgumentError] is thrown.
+  /// Each call uses a fresh `jti`; signing-provider failures propagate.
+  /// Treat the returned assertion as a short-lived credential.
   Future<String> createClientAssertion({
     required LtiRegistration registration,
     String? deploymentId,
@@ -272,6 +323,10 @@ final class LtiJwtSigner {
     });
   }
 
+  /// Returns a serializable JWKS containing only published public keys.
+  ///
+  /// Throws [StateError] if the provider returns duplicate key IDs. This method
+  /// does not rotate keys or start an HTTP endpoint.
   Future<Map<String, Object?>> publicJwks() async {
     final published = await keys.publicKeys();
     if (published.map((key) => key.keyId).toSet().length != published.length) {

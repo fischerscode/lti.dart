@@ -20,17 +20,19 @@ where embedded cookies are unavailable. For iframe embedding, replace Dart
 HttpServer's default `X-Frame-Options: SAMEORIGIN` with a CSP `frame-ancestors`
 allowlist of trusted platform origins (see the ByCS runner). Application sessions and authorization remain the application's job.
 
-This is a development release; it does not yet implement the complete LTI 1.3 /
-LTI Advantage suite. Configure `onDeepLinkingLaunch` to receive verified selection
+This is an uncertified development release. AGS and NRPS are provided by the
+underlying `lti` service client, not by additional adapter routes. Configure `onDeepLinkingLaunch` to receive verified selection
 requests on the same launch route. Use `deepLinkingFormResponse` to return a
 response signed by `LtiTool.createDeepLinkingResponse`; it renders an escaped
 auto-post form with a manual-submit button. The consuming tool supplies the
-selection UI and protected session. See the repository
-[Deep Linking guide](../../docs/deep-linking.md).
+selection UI and protected session. API documentation for `LtiShelf`, its
+callbacks and `deepLinkingFormResponse` explains the authorization and session
+contracts.
 
 For the WSL/SSH integration setup, `example/bycs_server.dart` provides HTTPS,
 a verified resource result and a browser-bound Deep Linking selection/cancel UI.
-See [ByCS testing](../../docs/bycs-testing.md) for configuration and live checks.
+The repository guide `docs/bycs-testing.md` describes configuration and live
+checks; this runner is a test harness, not a production application.
 
 Verified launch responses preserve an explicit application `Referrer-Policy`;
 the default remains `no-referrer`, and `Cache-Control: no-store` is always enforced.

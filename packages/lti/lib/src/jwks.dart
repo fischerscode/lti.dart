@@ -10,6 +10,11 @@ import 'models.dart';
 /// Trusted extension point. Implementations MUST verify the signature against
 /// administrator-provisioned keys, never keys or URLs supplied in the token.
 abstract interface class LtiTokenVerifier {
+  /// Verifies the signature of [token] using the trusted [registration].
+  ///
+  /// Return decoded claims only after successful cryptographic verification.
+  /// Issuer, audience, timestamps, nonce and LTI claims are validated separately
+  /// by the tool. Report failures using [LtiException] without token contents.
   Future<Map<String, Object?>> verify(
     String token,
     LtiRegistration registration,
@@ -17,8 +22,13 @@ abstract interface class LtiTokenVerifier {
 }
 
 /// RS256 verifier with a bounded, expiring cache of platform public keys.
-/// The caller owns [client] and must close it when the application shuts down.
+/// The caller owns the supplied HTTP client and must close it at shutdown.
 final class RemoteJwksVerifier implements LtiTokenVerifier {
+  /// Creates an RS256 verifier using the caller-owned HTTP client.
+  ///
+  /// [clock] defaults to the current time. All limits must be positive or this
+  /// throws [ArgumentError]. Requests go only to the configured JWKS endpoint
+  /// and never follow redirects. Callers must close the supplied client.
   RemoteJwksVerifier({
     required this._client,
     DateTime Function()? clock,
@@ -37,9 +47,17 @@ final class RemoteJwksVerifier implements LtiTokenVerifier {
 
   final http.Client _client;
   final DateTime Function() _clock;
+
+  /// Maximum cache age before platform keys are fetched again; default 15 minutes.
   final Duration cacheLifetime;
+
+  /// Minimum cache age before an unknown key ID triggers refresh; default 30 seconds.
   final Duration refreshInterval;
+
+  /// Deadline for loading a platform key set; default 10 seconds.
   final Duration timeout;
+
+  /// Maximum JWKS endpoints retained in memory; default 100.
   final int maxCachedEndpoints;
   final _cache = <Uri, _KeySet>{};
   final _pending = <Uri, Future<_KeySet>>{};

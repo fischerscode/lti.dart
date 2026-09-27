@@ -1,4 +1,21 @@
-/// Shelf integration for LTI resource and Deep Linking launches.
+/// Shelf routes for LTI login, resource launches, Deep Linking and tool JWKS.
+///
+/// Construct [LtiShelf] with a configured [LtiTool], an external HTTPS origin
+/// and application launch callbacks. Mount [LtiShelf.handler] at the server
+/// root and compose other routes in the host application. Protocol verification
+/// does not replace application authorization or durable user sessions.
+///
+/// ```dart
+/// final adapter = LtiShelf(
+///   tool: configuredTool,
+///   publicOrigin: Uri.parse('https://tool.example'),
+///   onResourceLaunch: (request, launch) async {
+///     // Apply the application's authorization policy before showing content.
+///     return Response.ok('Launch verified; authorization still required.');
+///   },
+/// );
+/// final handler = adapter.handler;
+/// ```
 library;
 
 import 'dart:async';
@@ -8,11 +25,22 @@ import 'dart:math';
 import 'package:lti/lti.dart';
 import 'package:shelf/shelf.dart';
 
+/// Handles a verified resource launch and returns the application response.
+///
+/// The callback receives the original Shelf request, whose form body has
+/// already been consumed. Apply application authorization and create your own
+/// session; successful protocol validation alone does not grant tool access.
+/// Callback failures propagate to the host error-handling middleware.
 typedef LtiResourceLaunchHandler = FutureOr<Response> Function(
   Request request,
   LtiResourceLaunch launch,
 );
 
+/// Handles a verified Deep Linking request by presenting a selection UI.
+///
+/// Retain the launch in a protected server session, authorize the user and
+/// protect selection actions against CSRF. The request body is already read.
+/// Return a signed selection with [deepLinkingFormResponse] after selection.
 typedef LtiDeepLinkingLaunchHandler = FutureOr<Response> Function(
   Request request,
   LtiDeepLinkingLaunch launch,
@@ -25,6 +53,17 @@ typedef LtiDeepLinkingLaunchHandler = FutureOr<Response> Function(
 /// can use opt-in partitioned cookies for embedded launches where supported.
 /// Missing cookies fail closed; the adapter never falls back to state alone.
 final class LtiShelf {
+  /// Creates root-mounted login, callback and optional public JWKS routes.
+  ///
+  /// [publicOrigin] must be the externally visible HTTPS origin, including any
+  /// nonstandard port. Routes must be distinct absolute plain paths; the
+  /// registered callback must equal the origin plus [launchPath]. Invalid
+  /// configuration throws [ArgumentError]. [onResourceLaunch] must authorize
+  /// the verified user before returning protected content.
+  ///
+  /// The host configures TLS, request deadlines and platform-specific iframe
+  /// CSP. [partitionedCookies] can support embedded launches in compatible
+  /// browsers; missing binding cookies are always rejected.
   LtiShelf({
     required this.tool,
     required this.publicOrigin,
@@ -57,19 +96,37 @@ final class LtiShelf {
       }
     }
   }
+
+  /// Configured protocol verifier, registration store and optional signer.
   final LtiTool tool;
+
+  /// Externally visible HTTPS origin used for callbacks and route validation.
   final Uri publicOrigin;
+
+  /// Application callback invoked only after resource launch validation.
   final LtiResourceLaunchHandler onResourceLaunch;
+
+  /// Optional selection callback; absent handlers reject Deep Linking requests.
   final LtiDeepLinkingLaunchHandler? onDeepLinkingLaunch;
 
   /// Optional server-side diagnostic observer. The HTTP response stays generic.
   /// Do not throw from this callback. Custom verifiers/stores must also ensure
   /// their exception messages contain no tokens or personal data.
   final void Function(LtiException error)? onProtocolError;
+
+  /// Login-initiation path accepting GET or form POST; default `/lti/login`.
   final String loginPath;
+
+  /// OIDC callback path accepting form POST; default `/lti/launch`.
   final String launchPath;
+
+  /// Public tool JWKS path for GET/HEAD; active only when a signer is configured.
   final String jwksPath;
+
+  /// Public JWKS cache lifetime; defaults to five minutes and may be zero.
   final Duration jwksCacheLifetime;
+
+  /// Maximum POST body bytes or GET encoded-query length; default 131072.
   final int maxRequestBytes;
 
   /// Opt into CHIPS for browser binding within a platform iframe.
@@ -82,6 +139,12 @@ final class LtiShelf {
     'referrer-policy': 'no-referrer',
   };
 
+  /// Root-mounted Shelf handler for the configured protocol routes.
+  ///
+  /// Unknown paths return 404; compose with your application's router.
+  /// Protocol failures produce redacted HTTP responses. Application callback
+  /// exceptions propagate. Successful launch responses are marked no-store;
+  /// application cookies are preserved and the one-use binding cookie expires.
   Handler get handler => _handle;
 
   Future<Response> _handle(Request request) async {
@@ -277,6 +340,11 @@ final class LtiShelf {
 
 /// Auto-post a signed selection to the platform; includes a manual-submit fallback.
 /// Content-item HTML is carried inside the JWT and is never rendered here.
+///
+/// [message] must be produced from an authorized, verified selection request.
+/// The returned no-store HTML response escapes form values, uses a nonce-based
+/// script policy and posts an uppercase `JWT` field. It does not establish an
+/// application session, authenticate the browser, or send the POST itself.
 Response deepLinkingFormResponse(LtiDeepLinkingResponse message) {
   final random = Random.secure();
   final nonce = base64Url.encode(List.generate(24, (_) => random.nextInt(256)));

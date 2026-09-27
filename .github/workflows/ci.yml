@@ -19,6 +19,7 @@ jobs:
       - run: fvm dart pub get --enforce-lockfile
       - run: fvm dart run melos run format:check
       - run: fvm dart run melos run analyze
+      - run: fvm dart run melos run docs
       - run: fvm dart run melos run test --no-select
       - name: Check Conventional Commits
         if: github.event_name == 'pull_request'

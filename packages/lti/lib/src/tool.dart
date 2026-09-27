@@ -12,6 +12,11 @@ import 'service_models.dart';
 
 /// Orchestrates login and validation without depending on a web framework.
 final class LtiTool {
+  /// Creates a framework-independent tool using trusted stores and a verifier.
+  ///
+  /// [signer] is optional for incoming launches but required for Deep Linking
+  /// responses. [clock] defaults to the current time. Invalid time limits throw
+  /// [ArgumentError]. Use a shared, atomic transaction store for multiple workers.
   LtiTool({
     required this.registrations,
     required this.transactions,
@@ -28,13 +33,27 @@ final class LtiTool {
       throw ArgumentError('Invalid protocol time limits.');
     }
   }
+
+  /// Administrator-provisioned registrations used for exact trust lookup.
   final LtiRegistrationStore registrations;
+
+  /// Atomic one-use login transaction storage; must be shared across workers.
   final LtiTransactionStore transactions;
+
+  /// Trusted cryptographic verifier for platform ID tokens.
   final LtiTokenVerifier tokenVerifier;
+
+  /// Tool JWT signer, or null when outbound messages are not configured.
   final LtiJwtSigner? signer;
   final DateTime Function() _clock;
+
+  /// Lifetime of a pending login transaction; defaults to five minutes.
   final Duration loginLifetime;
+
+  /// Allowed skew for token time checks; defaults to 30 seconds.
   final Duration clockTolerance;
+
+  /// Maximum accepted age since token issuance, plus clock tolerance.
   final Duration maxTokenAge;
   final _random = Random.secure();
 
@@ -42,6 +61,12 @@ final class LtiTool {
       .encode(List.generate(32, (_) => _random.nextInt(256)))
       .replaceAll('=', '');
 
+  /// Persists one-use state and builds an OIDC authorization redirect.
+  ///
+  /// Checks [request] against trusted registration, target and deployment data.
+  /// Throws [LtiException] for unknown/ambiguous registrations or disallowed
+  /// targets/deployments. Storage failures propagate. Bind the returned secret
+  /// to the initiating browser before redirecting; no user is authenticated yet.
   Future<LtiLoginRedirect> beginLogin(LtiLoginRequest request) async {
     final registration = await registrations.find(
       request.issuer,
@@ -98,8 +123,16 @@ final class LtiTool {
     );
   }
 
-  /// [browserBinding] must come from the initiating browser's protected storage,
-  /// never from the platform's POST body. Every attempt consumes its transaction.
+  /// Validates a callback and returns a verified resource or Deep Linking launch.
+  ///
+  /// [state] and [idToken] come from the platform form POST. [browserBinding]
+  /// must come from the initiating browser's protected storage, never the form.
+  /// Once a matching, unexpired transaction is consumed, it remains consumed
+  /// even if token validation fails. A binding mismatch does not consume it.
+  ///
+  /// Throws [LtiException] for protocol failures; custom store/verifier failures
+  /// can propagate. A returned launch still requires application authorization.
+  /// Do not reuse the ID token as an application session or log its contents.
   Future<LtiLaunch> completeLaunch({
     required String state,
     required String browserBinding,
@@ -147,7 +180,11 @@ final class LtiTool {
     };
   }
 
-  /// Resource-only convenience entry point. Unsupported messages still consume state.
+  /// Validates a callback that must be a resource-link launch.
+  ///
+  /// Uses the same state, browser binding and token checks as [completeLaunch].
+  /// A different valid message type throws [LtiException] with
+  /// [LtiErrorCode.unsupportedMessage] after consuming the matched transaction.
   Future<LtiResourceLaunch> completeResourceLaunch({
     required String state,
     required String browserBinding,
@@ -165,8 +202,28 @@ final class LtiTool {
     );
   }
 
-  /// Sign a selection or cancellation from a verified, server-held launch.
-  /// Applications must authorize selections and protect their session against CSRF.
+  /// Signs a selection or cancellation from a verified, server-held [launch].
+  ///
+  /// An empty [items] list cancels selection. The platform's opaque data is
+  /// echoed unchanged, including explicit null. Optional [message] and
+  /// [errorMessage] are intended for users; [log] and [errorLog] are returned
+  /// to the platform and must not disclose secrets.
+  ///
+  /// Throws [StateError] when no signer exists, [ArgumentError] for selections
+  /// incompatible with the request, or [LtiException] if registration is no
+  /// longer active. Signing-provider errors may propagate.
+  /// The host must authorize selections and protect its session against CSRF.
+  ///
+  /// ```dart
+  /// final response = await tool.createDeepLinkingResponse(
+  ///   launch: selectionLaunch,
+  ///   items: [LtiContentItem.ltiResourceLink(
+  ///     url: Uri.parse('https://tool.example/activity'),
+  ///     title: 'Practice activity',
+  ///   )],
+  /// );
+  /// // POST response.formFields from the browser to response.returnUrl.
+  /// ```
   Future<LtiDeepLinkingResponse> createDeepLinkingResponse({
     required LtiDeepLinkingLaunch launch,
     List<LtiContentItem> items = const [],
@@ -215,6 +272,11 @@ final class LtiTool {
 
   /// Terminates a browser-bound OIDC error response. Error descriptions from the
   /// platform are intentionally not reflected or logged by the protocol library.
+  ///
+  /// Always throws [LtiException]: [LtiErrorCode.authenticationFailed] after
+  /// consuming a matching transaction, or [LtiErrorCode.invalidState] when no
+  /// matching unexpired transaction exists. [browserBinding] must come from
+  /// the initiating browser's protected storage.
   Future<Never> completeLoginError({
     required String state,
     required String browserBinding,
@@ -409,19 +471,50 @@ sealed class LtiLaunch {
             }),
           );
   }
+
+  /// Trusted registration used to verify this launch.
   final LtiRegistration registration;
+
+  /// Deeply immutable verified claims, including unknown extension claims.
+  /// Contains potentially personal data; do not log the entire map.
   final Map<String, Object?> claims;
+
+  /// Validated AGS capabilities, or null when the platform did not advertise AGS.
   late final LtiAgsEndpoints? ags;
+
+  /// Validated NRPS capabilities, or null when membership access was not advertised.
   late final LtiNrpsEndpoint? nrps;
+
+  /// Verified user metadata, or null for a launch without a subject.
   late final LtiUser? user;
+
+  /// Immutable role values from the verified token; apply application authorization
+  /// separately.
   late final List<String> roles;
+
+  /// Optional validated course/group metadata; never assume every launch has a course.
   late final LtiContext? context;
+
+  /// Optional platform instance metadata from the verified claim.
   late final LtiPlatformInstance? platform;
+
+  /// Optional launch display hints and platform return navigation.
   late final LtiLaunchPresentation? presentation;
+
+  /// Optional source-system identifiers; these may be omitted for privacy.
   late final LtiLis? lis;
+
+  /// Immutable list of subjects covered by the verified mentor claim.
   late final List<String> mentorSubjectIds;
+
+  /// Immutable custom string parameters; authorization remains the host's
+  /// responsibility.
   late final Map<String, String> custom;
+
+  /// Verified deployment ID belonging to [registration].
   String get deploymentId => claims[LtiClaims.deploymentId]! as String;
+
+  /// Exact trusted target URL bound to the consumed login transaction.
   final String targetLinkUri;
 
   static LtiContext _context(Map<String, Object?> data) {
@@ -476,6 +569,8 @@ final class LtiResourceLaunch extends LtiLaunch {
       description: optionalString(link, 'description'),
     );
   }
+
+  /// Verified placement information for the launched resource.
   late final LtiResourceLink resourceLink;
 }
 
@@ -487,5 +582,7 @@ final class LtiDeepLinkingLaunch extends LtiLaunch {
       jsonObject(claims[LtiDeepLinkingClaims.settings]),
     );
   }
+
+  /// Validated selection capabilities and return destination from the platform.
   late final LtiDeepLinkingSettings settings;
 }
