@@ -487,6 +487,68 @@ void main() {
     },
   );
 
+  test(
+    'NRPS normalizes standard short context roles and preserves raw data',
+    () async {
+      final api = (await services()).nrps;
+      final shortRoles = [
+        'Administrator',
+        'ContentDeveloper',
+        'Instructor',
+        'Learner',
+        'Mentor',
+        'Manager',
+        'Member',
+        'Officer',
+      ];
+      respond = (_) async => json({
+        'id': 'https://platform.example/members',
+        'context': {'id': 'course'},
+        'members': [
+          for (final role in shortRoles)
+            {
+              'user_id': 'member-$role',
+              'roles': [role, 'https://example.org/custom-role'],
+            },
+        ],
+      }, LtiNrpsClient.mediaType);
+      final page = await api.memberships();
+      for (var i = 0; i < shortRoles.length; i++) {
+        final member = page.items[i];
+        expect(member.roles, [
+          '${LtiRoles.membership}#${shortRoles[i]}',
+          'https://example.org/custom-role',
+        ]);
+        expect(member.json['roles'], [
+          shortRoles[i],
+          'https://example.org/custom-role',
+        ]);
+        expect(() => member.roles.add('other'), throwsUnsupportedError);
+      }
+      for (final role in [
+        'instructor',
+        ' Instructor',
+        'Instructor ',
+        'Teacher',
+        'TeachingAssistant',
+        '',
+      ]) {
+        expect(
+          () => LtiMember.fromJson({
+            'user_id': 'member',
+            'roles': [role],
+          }),
+          throwsFormatException,
+        );
+      }
+      final canonical = LtiMember.fromJson({
+        'user_id': 'member',
+        'roles': [LtiRoles.instructor],
+      });
+      expect(canonical.roles, [LtiRoles.instructor]);
+    },
+  );
+
   test('NRPS rejects context mismatch and malformed members', () async {
     final api = (await services()).nrps;
     for (final document in [

@@ -449,3 +449,15 @@ sets the JSON body but not the response content type; its
 only emits an explicit content type when configured. ByCS returned HTTP 200
 with a non-JSON content type during the first service test; live compatibility
 verification is pending.
+
+### NRPS short context roles
+
+Moodle's membership serializer uses `lti_get_ims_role`, which can return
+`Instructor` and `Learner` rather than full URIs. NRPS members now normalize
+only the eight exact context role names defined in
+[LTI Core Appendix A.2.3](https://www.imsglobal.org/spec/lti/v1p3/#lis-vocabulary-for-context-roles)
+to their membership URIs. `LtiMember.json` preserves the original roles;
+`LtiMember.roles` returns canonical values. Unknown short names, wrong case,
+whitespace variants and malformed arrays remain rejected. Extension URIs
+are preserved. This addresses a source-confirmed compatibility gap; the
+ByCS retest remains pending.

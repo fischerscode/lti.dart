@@ -1,5 +1,5 @@
 /// LTI 1.3 Appendix A vocabularies. URI values are case-sensitive.
-/// Deprecated simple names and URNs are deliberately not normalized.
+/// Legacy context names can be explicitly normalized for service responses.
 abstract final class LtiRoles {
   static const membership = 'http://purl.imsglobal.org/vocab/lis/v2/membership';
   static const instructor = '$membership#Instructor';
@@ -43,6 +43,11 @@ abstract final class LtiRoles {
   });
 
   static bool isStandard(String role) => standard.contains(role);
+
+  /// Recognize only the eight deprecated context role names in Core A.2.3.
+  /// Matching is case-sensitive; unknown names and extension URIs are preserved.
+  static String normalizeContextRole(String role) =>
+      _subRoles.containsKey(role) ? '$membership#$role' : role;
 
   static const _subRoles = {
     'Administrator': [

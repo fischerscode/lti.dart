@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'models.dart';
+import 'vocabularies.dart';
 import 'errors.dart';
 
 abstract final class LtiServiceScopes {
@@ -295,7 +296,7 @@ final class LtiMember {
       serviceString(json, 'user_id');
     });
     validate(LtiMemberField.roles, () {
-      final roles = stringList(json['roles']);
+      final roles = this.roles;
       if (roles.any((r) => !(Uri.tryParse(r)?.hasScheme ?? false))) {
         throw const FormatException();
       }
@@ -329,7 +330,11 @@ final class LtiMember {
   }
   final Map<String, Object?> json;
   String get userId => json['user_id']! as String;
-  List<String> get roles => stringList(json['roles']);
+
+  /// Canonical context role URIs; the original values remain in [json].
+  List<String> get roles => List.unmodifiable(
+    stringList(json['roles']).map(LtiRoles.normalizeContextRole),
+  );
   LtiMembershipStatus get status => switch (json['status']) {
     'Inactive' => LtiMembershipStatus.inactive,
     'Deleted' => LtiMembershipStatus.deleted,
