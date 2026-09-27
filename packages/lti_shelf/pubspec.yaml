@@ -1,13 +1,13 @@
 name: lti_shelf
 description: Shelf HTTP adapter for the Dart LTI tool library.
-version: 0.1.0-dev.1
+version: 0.1.0
 repository: https://github.com/fischerscode/lti.dart/tree/main/packages/lti_shelf
 issue_tracker: https://github.com/fischerscode/lti.dart/issues
 resolution: workspace
 environment:
   sdk: ^3.13.0
 dependencies:
-  lti: ^0.1.0-dev.1
+  lti: ^0.1.0
   shelf: ^1.4.2
 dev_dependencies:
   http: ^1.6.0
