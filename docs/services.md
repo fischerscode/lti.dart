@@ -3,8 +3,9 @@
 The tool-side clients cover [AGS 2.0](https://www.imsglobal.org/spec/lti-ags/v2p0/)
 and [NRPS 2.0](https://www.imsglobal.org/spec/lti-nrps/v2p0/). Their capabilities
 are parsed on verified launches as `launch.ags` and `launch.nrps`. Absence is
-normal and disables the corresponding operations. This is local implementation
-and test evidence, not certification or a successful live ByCS service test.
+normal and disables the corresponding operations. Local tests and reported live
+ByCS tests cover membership reads and grade workflows; this is not formal
+certification. See the [ByCS test guide](bycs-testing.md).
 
 ## Constructing clients
 

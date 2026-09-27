@@ -194,9 +194,9 @@ evidence, not a replayable captured-token test; no personal claims were recorded
 
 This verifies one resource-launch path through the public HTTPS/SSH setup.
 At that stage, Deep Linking and embedded selection were still pending; subsequent
-results are recorded below. ByCS retrieval of tool JWKS, broader role/browser
-coverage, AGS and NRPS remain unverified against the live platform. This result
-does not establish complete conformance or application authorization.
+results, including AGS and NRPS service tests, are recorded below. ByCS retrieval
+of tool JWKS and broader role/browser coverage remain unresolved or unverified.
+This result does not establish complete conformance or application authorization.
 
 ## Live Deep Linking test
 
@@ -432,8 +432,9 @@ trust a host copied from a claim.
 After successful reads, the next live test stages are: create a uniquely tagged
 test column, read and update it, publish a score for an explicitly selected test
 learner, inspect the gradebook/result, clear the test score, and remove only the
-created column. The present runner does not expose those write operations.
-They require a separate explicit test action and tracking of the created item.
+created column. The runner exposes these operations through the explicit
+write-test UI described below, with separate actions and tracking of the created
+item.
 
 ### Moodle OAuth content type compatibility
 
@@ -447,8 +448,8 @@ Rationale: Moodle 4.5's [token endpoint](https://github.com/moodle/moodle/blob/M
 sets the JSON body but not the response content type; its
 [response class](https://github.com/moodle/moodle/blob/MOODLE_405_STABLE/mod/lti/classes/local/ltiservice/response.php)
 only emits an explicit content type when configured. ByCS returned HTTP 200
-with a non-JSON content type during the first service test; live compatibility
-verification is pending.
+with a non-JSON content type during the first service test; subsequent service
+reads and writes succeeded with this option enabled.
 
 ### NRPS short context roles
 
@@ -460,12 +461,14 @@ to their membership URIs. `LtiMember.json` preserves the original roles;
 `LtiMember.roles` returns canonical values. Unknown short names, wrong case,
 whitespace variants and malformed arrays remain rejected. Extension URIs
 are preserved. This addresses a source-confirmed compatibility gap; the
-ByCS retest remains pending.
+ByCS retest succeeded.
 
 ## Live AGS write test
 
 Verified against ByCS: OAuth, NRPS (one member, no next page), AGS line item
-listing (empty, no next page). Writes still require live verification.
+listing (empty, no next page). Subsequent user-reported tests also succeeded for
+column creation/read/rename/deletion and score submission/readback/clearing with
+a test learner. These are integration results, not formal certification.
 
 Enable the explicit write UI instead of the plain launch report:
 

@@ -3,7 +3,8 @@
 The token client implements the client-credentials exchange in the
 [1EdTech Security Framework](https://www.imsglobal.org/spec/security/v1p0/#using-json-web-tokens-with-oauth-2-0-client-credentials-grant).
 AGS and NRPS operations use this client through [LtiServiceClient](services.md).
-No live ByCS token exchange has been verified yet.
+Live ByCS service tests successfully used this token exchange with the explicit
+Moodle content-type compatibility option; see [ByCS testing](bycs-testing.md).
 
 ## API
 
@@ -82,5 +83,5 @@ Tests verify real RS256 assertion signatures, audience override, form encoding,
 scope canonicalization and grant validation, concurrent fetching, registration/
 deployment/scope isolation, early refresh, invalidation, eviction, short and
 expired lifetimes, HTTP errors and redirect rejection, response size, timeout
-and diagnostic redaction. These are local protocol tests, not evidence that
-ByCS service permissions or its token endpoint have been exercised.
+and diagnostic redaction. These automated checks complement the live ByCS
+service tests; platform permissions must still be configured for each tool.

@@ -29,14 +29,16 @@ nonce, LTI version and deployment. Payloads cannot override those security
 fields. The payload is snapshotted before awaiting an external signer.
 
 This generic method validates the envelope only. A signed payload is **not**
-automatically a valid Deep Linking response; the typed Deep Linking request and
-response implementation is still pending.
+automatically a valid Deep Linking response. Use
+`LtiTool.createDeepLinkingResponse` for typed, validated selections; see the
+[Deep Linking guide](deep-linking.md).
 
 `signer.createClientAssertion(registration: ..., deploymentId: ...)` prepares a
-JWT for a future OAuth token request. Issuer and subject both contain the client
+JWT for an OAuth token request. Issuer and subject both contain the client
 ID, and every assertion receives a fresh `jti`. The audience is the registration's
 explicit `authorizationServerAudience`, or its `tokenEndpoint` if no separate
-audience was provisioned. No network request or access-token caching happens yet.
+audience was provisioned. This signer method does not make network requests or cache access tokens;
+`LtiOAuthClient` supplies that functionality.
 
 The default lifetime is five minutes, configurable from one second to five
 minutes. Tokens which expire while waiting for an external signer are rejected.
