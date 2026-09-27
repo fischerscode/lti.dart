@@ -331,3 +331,48 @@ a separate cancellation defect.
 The live test record now covers selection, signed return, subsequent resource
 launch with the custom marker, and cancellation using the directly configured
 public key. ByCS retrieval of the tool JWKS remains unresolved.
+
+
+### Targeted JWKS retrieval diagnosis
+
+An independent check on 2026-09-27 resolved the hostname to 178.238.224.202,
+returned no AAAA record, verified TLS successfully with curl and OpenSSL, and
+received HTTP 200 with public RSA JWKS. These observations do not establish
+ByCS-side DNS resolution, network access or the saved registration URL.
+
+Restart the runner with opt-in request diagnostics:
+
+```sh
+BYCS_JWKS_DIAGNOSTICS=1 fvm dart run packages/lti_shelf/example/bycs_server.dart
+```
+
+First confirm logging from a separate WSL terminal:
+
+```sh
+curl --noproxy '*' --fail --silent --show-error --max-time 10 \
+  'https://ltitest.schulzeug.eu/lti/jwks?probe=local'
+```
+
+Expect a runner line containing `method=GET probe=local status=200`. Then set
+the ByCS public key type back to keyset URL, enter exactly
+`https://ltitest.schulzeug.eu/lti/jwks?probe=bycs`, save, and start a fresh
+content selection and return. Do not open that marked URL yourself during the
+test. Send the resulting JWKS diagnostic lines alongside the browser outcome.
+
+The label is only a correlation aid, not proof of the request's identity.
+Only UTC timestamp, a fixed method category, an allowlisted probe label and
+response status are logged. Raw queries, headers, IP addresses, bodies,
+tokens and cookies are excluded. Logging is off without the environment flag.
+
+- A correlated `probe=bycs status=200` shows the runner prepared a successful
+  response, not that ByCS received or parsed it. Check registration selection,
+  intermediary responses and ByCS server logs if the error persists.
+- If the control request logs but the fresh failing ByCS attempt produces no
+  JWKS line, check the saved keyset URL and selected tool registration, then
+  ByCS DNS/TLS/egress restrictions with the platform operator. Lack of a log
+  alone does not identify which of these failed.
+- Other response statuses or an unmarked request help identify an unexpected
+  method, configuration or request path through the test setup.
+
+Keep direct RSA mode available for functional testing. No change to signature
+verification or key material is needed for these diagnostics.

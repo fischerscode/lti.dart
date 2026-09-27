@@ -63,6 +63,9 @@ Future<void> main() async {
       tool: tool,
       origin: origin,
       platformOrigin: Uri.parse(registration.issuer),
+      onJwksRequest: Platform.environment['BYCS_JWKS_DIAGNOSTICS'] == '1'
+          ? (message) => stdout.writeln(message)
+          : null,
     ),
   );
   server.idleTimeout = const Duration(seconds: 15);
@@ -73,6 +76,11 @@ Future<void> main() async {
   stdout.writeln(
     'Resource launches and Deep Linking selection enabled. AGS and NRPS remain disabled.',
   );
+  if (Platform.environment['BYCS_JWKS_DIAGNOSTICS'] == '1') {
+    stdout.writeln(
+      'JWKS diagnostics enabled: fixed route, method, probe label and response status only.',
+    );
+  }
   final stopped = Completer<void>();
   void stop(ProcessSignal _) {
     if (!stopped.isCompleted) stopped.complete();
@@ -100,6 +108,7 @@ Handler integrationHandler({
   required LtiTool tool,
   required Uri origin,
   required Uri platformOrigin,
+  void Function(String message)? onJwksRequest,
 }) {
   if (platformOrigin.scheme != 'https' || platformOrigin.host.isEmpty) {
     throw ArgumentError('An HTTPS platform origin is required.');
@@ -165,6 +174,30 @@ Handler integrationHandler({
 
   return (request) async {
     final response = await handle(request);
+    if (request.url.path == 'lti/jwks' && onJwksRequest != null) {
+      // The label helps correlate a deliberate test, but does not identify its
+      // sender. Never log raw queries, request headers, addresses or bodies.
+      final labels = request.url.queryParametersAll['probe'];
+      final label = switch (labels) {
+        null => 'none',
+        ['bycs'] => 'bycs',
+        ['local'] => 'local',
+        _ => 'other',
+      };
+      final method = switch (request.method) {
+        'GET' => 'GET',
+        'HEAD' => 'HEAD',
+        _ => 'OTHER',
+      };
+      try {
+        onJwksRequest(
+          'JWKS ${DateTime.now().toUtc().toIso8601String()} '
+          'method=$method probe=$label status=${response.statusCode}',
+        );
+      } catch (_) {
+        // Diagnostic observers must not break key publication.
+      }
+    }
     final csp = response.headers['content-security-policy'];
     return response.change(
       headers: {

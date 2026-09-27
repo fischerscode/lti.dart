@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:lti/lti.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
@@ -39,6 +41,85 @@ void main() {
         "frame-ancestors 'self' https://platform.example",
       );
       await response.drain<void>();
+    },
+  );
+
+  test(
+    'JWKS diagnostics preserve publication and redact request data',
+    () async {
+      final messages = <String>[];
+      final signingTool = LtiTool(
+        registrations: platform.tool.registrations,
+        transactions: platform.tool.transactions,
+        tokenVerifier: platform.verifier,
+        signer: LtiJwtSigner(
+          keys: MemoryLtiSigningKeyProvider(
+            RsaLtiSigningKey.fromJwk(TestPlatform.key.toJson()),
+          ),
+        ),
+      );
+      final diagnosticHandler = integrationHandler(
+        tool: signingTool,
+        origin: Uri.parse('https://tool.example'),
+        platformOrigin: Uri.parse('https://platform.example'),
+        onJwksRequest: messages.add,
+      );
+      for (final probe in ['bycs', 'local', 'PRIVATE_QUERY']) {
+        final response = await diagnosticHandler(
+          Request(
+            'GET',
+            Uri.parse(
+              'https://tool.example/lti/jwks?probe=$probe&secret=PRIVATE_TOKEN',
+            ),
+            headers: {
+              'cookie': 'PRIVATE_COOKIE',
+              'user-agent': 'PRIVATE_AGENT',
+            },
+          ),
+        );
+        expect(response.statusCode, 200);
+        final keys =
+            (jsonDecode(await response.readAsString()) as Map)['keys'] as List;
+        expect(keys, hasLength(1));
+        expect((keys.single as Map).containsKey('d'), isFalse);
+        expect(response.headers['cache-control'], 'public, max-age=300');
+      }
+      expect(messages, hasLength(3));
+      expect(messages[0], contains('method=GET probe=bycs status=200'));
+      expect(messages[1], contains('method=GET probe=local status=200'));
+      expect(messages[2], contains('method=GET probe=other status=200'));
+      expect(messages.join(), isNot(contains('PRIVATE')));
+      await diagnosticHandler(
+        Request('GET', Uri.parse('https://tool.example/health')),
+      );
+      expect(messages, hasLength(3));
+      final rejected = await diagnosticHandler(
+        Request(
+          'POST',
+          Uri.parse('https://tool.example/lti/jwks?probe=bycs&probe=PRIVATE'),
+          body: 'PRIVATE_BODY',
+        ),
+      );
+      expect(rejected.statusCode, 405);
+      expect(messages.last, contains('method=OTHER probe=other status=405'));
+      expect(messages.join(), isNot(contains('PRIVATE')));
+      final head = await diagnosticHandler(
+        Request('HEAD', Uri.parse('https://tool.example/lti/jwks')),
+      );
+      expect(await head.readAsString(), isEmpty);
+      expect(messages.last, contains('method=HEAD probe=none status=200'));
+      final brokenObserver = integrationHandler(
+        tool: signingTool,
+        origin: Uri.parse('https://tool.example'),
+        platformOrigin: Uri.parse('https://platform.example'),
+        onJwksRequest: (_) => throw StateError('observer failed'),
+      );
+      expect(
+        (await brokenObserver(
+          Request('GET', Uri.parse('https://tool.example/lti/jwks')),
+        )).statusCode,
+        200,
+      );
     },
   );
 
