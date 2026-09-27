@@ -1,4 +1,4 @@
-## Unreleased
+## 0.1.0-dev.1
 
 - Add verified AGS/NRPS capability claims, typed service models and clients with scoped OAuth, explicit destination trust, bounded pagination, grade operations and membership/difference retrieval.
 
@@ -13,7 +13,7 @@
 - Add typed optional Core claims, standard role/context vocabularies and mentor validation.
 - Require explicit trust for additional JWT audiences and handle bound OIDC errors.
 
-## 0.1.0-dev.1
+### Initial implementation
 
 - Introduce registrations, atomic login transaction contracts and OIDC initiation.
 - Verify resource launches using RS256, configured platform JWKS and bound state.

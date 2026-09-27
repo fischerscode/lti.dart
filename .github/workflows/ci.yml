@@ -1,7 +1,10 @@
 name: CI
 on:
   push:
+    branches:
+      - '**'
   pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -18,6 +21,7 @@ jobs:
       - run: fvm install
       - run: fvm dart pub get --enforce-lockfile
       - run: fvm dart run melos run format:check
+      - run: fvm dart run melos run test:release
       - run: fvm dart run melos run analyze
       - run: fvm dart run melos run docs
       - run: fvm dart run melos run test --no-select

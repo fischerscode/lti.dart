@@ -8,12 +8,28 @@ workspace:
 dev_dependencies:
   lints: ^6.1.0
   melos: ^8.9.0
+  pub_semver: ^2.2.1
+  test: ^1.31.1
+  yaml: ^3.1.4
 melos:
+  # Set repository to https://github.com/OWNER/REPOSITORY before releasing.
+  # Melos then enables commit links automatically.
   sdkPath: .fvm/flutter_sdk
   command:
     version:
+      branch: main
       message: 'chore(release): publish packages'
+      releaseUrl: true
+      changelogFormat:
+        includeDate: true
+        groupByType: true
+      hooks:
+        preCommit: |
+          dart pub get --offline
+          git add pubspec.lock
   scripts:
+    test:release:
+      run: dart test test/release_test.dart
     analyze:
       run: dart analyze --fatal-infos
     format:

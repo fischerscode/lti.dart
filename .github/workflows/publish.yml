@@ -1,0 +1,49 @@
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      - 'lti-v*'
+      - 'lti_shelf-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pub-dev-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Provisions short-lived pub.dev OIDC credentials. FVM's Dart uses the
+      # same pub credentials; no long-lived publishing secret is required.
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.13.0'
+      - run: dart pub global activate fvm 4.3.1
+      - run: fvm install
+      - run: fvm dart pub get --enforce-lockfile
+      - name: Validate release and wait for dependencies
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: fvm dart run tool/release.dart "$RELEASE_TAG"
+      - name: Check publishable archive
+        working-directory: packages/${{ steps.release.outputs.package }}
+        run: fvm dart pub publish --dry-run
+      - name: Publish tagged package
+        working-directory: packages/${{ steps.release.outputs.package }}
+        run: fvm dart pub publish --force

@@ -144,7 +144,9 @@ Generated API documentation is written to `build/api/lti/index.html` and
 `build/api/lti_shelf/index.html`. Public APIs also have Dartdocs in IDE tooltips.
 No code generation is currently needed.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for Conventional Commits and versioning.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for Conventional Commits and
+[the release guide](docs/releases.md) for Melos versioning, changelogs, GitHub
+release links and automated publishing to pub.dev.
 
 ## Specification references
 
