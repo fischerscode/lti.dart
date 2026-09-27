@@ -12,8 +12,7 @@ dev_dependencies:
   test: ^1.31.1
   yaml: ^3.1.4
 melos:
-  # Set repository to https://github.com/OWNER/REPOSITORY before releasing.
-  # Melos then enables commit links automatically.
+  repository: https://github.com/fischerscode/lti.dart
   sdkPath: .fvm/flutter_sdk
   command:
     version:

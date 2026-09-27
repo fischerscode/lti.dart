@@ -17,17 +17,16 @@ flowchart LR
 
 ## One-time setup
 
-1. Configure the GitHub repository URL in `melos.repository` in the root
-   `pubspec.yaml`, plus the package `repository` and `issue_tracker` metadata.
-   Set `origin` to that repository in your local clone. Melos uses the configured
-   repository to generate commit and release links.
-2. Choose the project license and include `LICENSE` in each package directory.
-   Package archives do not inherit a license file from the workspace root.
+1. The repository is `fischerscode/lti.dart`. Melos and both package manifests
+   already contain its GitHub metadata for commit links and release pages.
+   Point your local `origin` at `https://github.com/fischerscode/lti.dart.git`.
+2. The project uses the MIT license. Each package includes its own `LICENSE`
+   copy so the license is also present in published archives.
 3. Check that you control the intended pub.dev package names. Each package's
    **first version must be published manually** from an authorized account;
    automated publishing works only for packages that already exist.
 4. After that first publication, enable **Automated publishing → GitHub Actions**
-   in each package's pub.dev Admin tab with your `OWNER/REPOSITORY` and these
+   in each package's pub.dev Admin tab with repository `fischerscode/lti.dart` and these
    exact patterns:
 
    | Package | pub.dev tag pattern | Example pushed tag |
