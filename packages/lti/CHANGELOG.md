@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add verified AGS/NRPS capability claims, typed service models and clients with scoped OAuth, explicit destination trust, bounded pagination, grade operations and membership/difference retrieval.
+
 - Add scoped OAuth client-credentials token requests with signed assertions, bounded cache, expiry, coalescing and safe errors.
 
 - Normalize standard legacy context names and URNs for Moodle-compatible launches.

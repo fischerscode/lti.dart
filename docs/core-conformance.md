@@ -4,7 +4,8 @@ Reviewed against [LTI Core 1.3](https://www.imsglobal.org/spec/lti/v1p3/), its
 [errata](https://www.imsglobal.org/spec/lti/v1p3/errata/) and the
 [Security Framework](https://www.imsglobal.org/spec/security/v1p0/).
 This is an engineering checklist for the implemented resource-launch profile,
-not a certification or a claim that all LTI Advantage services are implemented.
+not a certification. Advantage service implementation is covered separately
+in [services.md](services.md).
 
 | Requirement / section | Implementation and evidence |
 | --- | --- |
@@ -26,9 +27,9 @@ not a certification or a claim that all LTI Advantage services are implemented.
 | Security 5.1.3: time/replay | Expiry, issued-at, optional not-before, configurable clock tolerance and maximum age; atomic browser-bound consumption |
 | Security 5.1.3: rejected authentication | Shelf returns 401 for invalid tokens/claims; OIDC errors consume bound transactions without exposing descriptions |
 | Security 6.3–6.4: incoming keys | Provisioned JWKS URL, `kid`, bounded cache, overlapping-key rotation supported; `jwks_test.dart` |
-| Core 6 / Security 4.1: services | Pending scoped OAuth client, AGS and NRPS; no service access attempted yet |
+| Core 6 / Security 4.1: services | Scoped OAuth, AGS and NRPS clients with verified capabilities and explicit destination policy; local protocol tests |
 | Security 5.2 / 6: outgoing signing | RS256 envelopes, typed public JWKS and staged key rotation; `signing_test.dart`, `jwks_route_test.dart` |
-| Core 6.2 / Security 4.1.1: client assertions | Client ID as issuer/subject, provisioned audience, bounded timestamps, unique jti and optional deployment; token HTTP client still pending |
+| Core 6.2 / Security 4.1.1: client assertions | Client ID as issuer/subject, provisioned audience, bounded timestamps, unique jti and optional deployment; token HTTP client implemented and tested |
 
 ## Errata decisions
 
@@ -36,7 +37,7 @@ not a certification or a claim that all LTI Advantage services are implemented.
 - Custom substitutions remain strings, including empty or unresolved values.
 - The signed target is checked against the login target.
 - TestUser is recognized as a marker role; applications decide how to handle it.
-- Upcoming OAuth assertions must use the client ID for both issuer and subject.
+- OAuth assertions use the client ID for both issuer and subject.
 
 ## Explicit policies and limits
 
@@ -55,8 +56,10 @@ numbers. The endpoint and target allowlists, required browser binding, 2048-bit
 minimum RSA size, five-minute default login/token age and required multi-audience
 `azp` are deliberate security policies.
 
-The Shelf adapter currently requires cookies; a top-level window is needed when
-third-party cookies are blocked. Production transaction storage, actual browser
-tests and a real ByCS registration remain integration requirements. Static key
+The Shelf adapter requires cookies, with opt-in partitioned cookies. A top-level
+window may be needed when embedded storage is unavailable. Production transaction
+storage and broader browser/platform coverage remain integration requirements.
+Resource launch and Deep Linking selection/cancellation have been tested in ByCS
+with a directly configured RSA key; service checks are deferred. Static key
 exchange, Common Cartridge file authoring, platform-side substitution and LMS
 functionality are not part of this resource-launch adapter.

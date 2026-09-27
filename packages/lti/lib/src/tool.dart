@@ -8,6 +8,7 @@ import 'models.dart';
 import 'store.dart';
 import 'signing.dart';
 import 'vocabularies.dart';
+import 'service_models.dart';
 
 /// Orchestrates login and validation without depending on a web framework.
 final class LtiTool {
@@ -354,6 +355,17 @@ sealed class LtiLaunch {
         'Roles must be URIs and include a standard role when nonempty.',
       );
     }
+    try {
+      final agsData = optionalObject(claims, LtiServiceClaims.ags);
+      ags = agsData == null ? null : LtiAgsEndpoints.fromJson(agsData);
+      final nrpsData = optionalObject(claims, LtiServiceClaims.nrps);
+      nrps = nrpsData == null ? null : LtiNrpsEndpoint.fromJson(nrpsData);
+    } on FormatException {
+      throw const LtiException(
+        LtiErrorCode.invalidClaims,
+        'Invalid service capability claim.',
+      );
+    }
     final contextData = optionalObject(claims, LtiClaims.context);
     context = contextData == null ? null : _context(contextData);
     final platformData = optionalObject(claims, LtiClaims.toolPlatform);
@@ -399,6 +411,8 @@ sealed class LtiLaunch {
   }
   final LtiRegistration registration;
   final Map<String, Object?> claims;
+  late final LtiAgsEndpoints? ags;
+  late final LtiNrpsEndpoint? nrps;
   late final LtiUser? user;
   late final List<String> roles;
   late final LtiContext? context;

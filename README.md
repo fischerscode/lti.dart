@@ -10,11 +10,13 @@ protocol library and HTTP adapters, not a learning application or an LMS.
 
 ## Status
 
-**Early development — not yet a complete or certified LTI 1.3 implementation.**
+**Development release — tool-side Core and Advantage implemented; not certified.**
 The implementation supports manually registered platforms, OIDC login,
 RS256-verified resource launches, typed Core claims, tool signing and public
-JWKS with rotation and Deep Linking selection/return messages. AGS, NRPS and
-dynamic registration are not yet implemented. Scoped OAuth access-token requests and caching are implemented; see [service authentication](docs/oauth.md).
+JWKS with rotation, Deep Linking selection/return messages, scoped OAuth tokens,
+AGS grade services and NRPS membership services. See [service authentication](docs/oauth.md)
+and [Advantage service clients](docs/services.md). Dynamic Registration and other
+separate LTI extensions are outside this Core/Advantage implementation.
 Live ByCS resource launch and Deep Linking selection/return followed by a marked
 resource launch, plus cancellation, were reported successful on 2026-09-27 using a directly configured
 RSA public key. ByCS retrieval of tool JWKS, service access and

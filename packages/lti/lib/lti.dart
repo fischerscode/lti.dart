@@ -29,3 +29,19 @@ export 'src/signing.dart';
 export 'src/deep_linking.dart';
 
 export 'src/oauth.dart';
+
+export 'src/service_models.dart'
+    show
+        LtiServiceScopes,
+        LtiServiceClaims,
+        LtiAgsEndpoints,
+        LtiNrpsEndpoint,
+        LtiLineItem,
+        LtiScore,
+        LtiActivityProgress,
+        LtiGradingProgress,
+        LtiResult,
+        LtiMember,
+        LtiMembershipStatus,
+        LtiServicePage;
+export 'src/services.dart';

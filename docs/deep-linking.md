@@ -2,7 +2,8 @@
 
 The tool-side flow implements [Deep Linking 2.0](https://www.imsglobal.org/spec/lti-dl/v2p0/)
 within LTI 1.3. The message version remains `1.3.0`. This is an implementation,
-not certification or evidence of live ByCS interoperability.
+not certification. A ByCS resource selection/return and cancellation with a
+direct RSA key have been reported successful; see [test record](bycs-testing.md).
 
 ## Consumer API
 
@@ -91,7 +92,7 @@ and the documented third-party-cookie limitation.
 Tests use real RSA signatures and a local simulated platform to cover selection,
 response verification, subsequent resource launch, cancellation, opaque data,
 all five content types, negotiation failures, malformed requests, output escaping
-and replay. No browser engine, external reference LMS or live ByCS instance has
-yet been exercised. Those integration checks remain part of the interoperability
-milestone. The specification's linked errata page was unavailable during this
+and replay. One live ByCS browser flow with a direct RSA key has been exercised;
+other content types and broader browser/platform coverage remain part of the
+interoperability milestone. The specification's linked errata page was unavailable during this
 implementation; recheck it as part of that milestone.

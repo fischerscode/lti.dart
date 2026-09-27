@@ -80,17 +80,19 @@ An optional `LtiTool.signer` owns outgoing JWT construction. Its key provider
 exposes signing operations separately from typed public keys. The Shelf JWKS
 route serializes only the latter. See [signing and rotation](signing.md).
 
-## Next API increments
+## Advantage services
 
-- Dedicated verified deep-linking request type and signed response builder;
-  application code owns the content selection interface.
-- Scoped OAuth token provider using the implemented client-assertion signer,
-  shared by AGS and NRPS clients, keyed by
-  registration and requested scopes, with token refresh and bounded caching.
-- Typed service capabilities from verified claims. Service clients must validate
-  destination policy and pagination URLs before forwarding bearer tokens.
-- Browser storage/message support where advertised by the platform. Maintain
-  transaction-to-browser binding even when cookies are unavailable.
+Verified launch objects expose typed AGS and NRPS capabilities. LtiServiceClient
+binds requests to their registration/deployment and an administrator-provisioned
+HTTPS origin allowlist. It validates service, item and pagination destinations
+before acquiring/forwarding bearer tokens. Scoped OAuth tokens are cached by
+registration identity, deployment and exact scope set; requests and page streams
+are bounded. No redirects or automatic mutation retries are performed.
+See [OAuth](oauth.md) and [service APIs](services.md).
+
+The library supplies protocols, not application persistence. Host applications
+own grade event ordering, roster reconciliation, durable sessions and business
+authorization. Separate LTI extensions remain outside the Core/Advantage target.
 
 Code generation is currently unnecessary. Core and Advantage remain modules of
 one package until a concrete dependency or release boundary justifies a split.

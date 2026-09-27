@@ -2,7 +2,7 @@
 
 The token client implements the client-credentials exchange in the
 [1EdTech Security Framework](https://www.imsglobal.org/spec/security/v1p0/#using-json-web-tokens-with-oauth-2-0-client-credentials-grant).
-AGS and NRPS service operations remain separate, unimplemented milestones.
+AGS and NRPS operations use this client through [LtiServiceClient](services.md).
 No live ByCS token exchange has been verified yet.
 
 ## API
