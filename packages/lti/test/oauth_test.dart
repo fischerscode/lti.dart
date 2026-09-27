@@ -215,11 +215,24 @@ void main() {
       await expectLater(
         get(),
         throwsA(
-          isA<LtiOAuthException>().having(
-            (e) => e.code,
-            'code',
-            LtiOAuthErrorCode.invalidResponse,
-          ),
+          isA<LtiOAuthException>()
+              .having((e) => e.code, 'code', LtiOAuthErrorCode.invalidResponse)
+              .having((e) => e.statusCode, 'HTTP status', 200)
+              .having(
+                (e) => e.responseIssue,
+                'validation category',
+                {
+                  'access_token': LtiOAuthResponseIssue.accessToken,
+                  'token_type': LtiOAuthResponseIssue.tokenType,
+                  'expires_in': LtiOAuthResponseIssue.expiresIn,
+                  'scope': LtiOAuthResponseIssue.scope,
+                }[override.keys.single],
+              )
+              .having(
+                (e) => e.toString(),
+                'redacted',
+                isNot(contains('SECRET')),
+              ),
         ),
       );
     });

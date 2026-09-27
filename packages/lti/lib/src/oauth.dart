@@ -14,13 +14,27 @@ enum LtiOAuthErrorCode {
   capacity,
 }
 
+/// Fixed validation categories; never contains platform response values.
+enum LtiOAuthResponseIssue {
+  contentType,
+  responseSize,
+  json,
+  accessToken,
+  tokenType,
+  expiresIn,
+  scope,
+  expired,
+}
+
 /// Safe diagnostics: never includes assertions, tokens or platform response text.
 final class LtiOAuthException implements Exception {
-  const LtiOAuthException(this.code, {this.statusCode});
+  const LtiOAuthException(this.code, {this.statusCode, this.responseIssue});
   final LtiOAuthErrorCode code;
   final int? statusCode;
+  final LtiOAuthResponseIssue? responseIssue;
   @override
-  String toString() => 'LtiOAuthException(${code.name}, status=$statusCode)';
+  String toString() =>
+      'LtiOAuthException(${code.name}, status=$statusCode, issue=${responseIssue?.name})';
 }
 
 final class LtiAccessToken {
@@ -124,6 +138,8 @@ final class LtiOAuthClient {
   ) async {
     final abort = Completer<void>();
     final started = _clock();
+    int? statusCode;
+    LtiOAuthResponseIssue? issue;
     try {
       return await (() async {
         final assertion = await signer.createClientAssertion(
@@ -145,6 +161,7 @@ final class LtiOAuthClient {
           'scope': scopes.join(' '),
         };
         final response = await client.send(request);
+        statusCode = response.statusCode;
         if (response.statusCode != 200) {
           await response.stream.listen(null).cancel();
           throw LtiOAuthException(
@@ -154,6 +171,7 @@ final class LtiOAuthClient {
             statusCode: response.statusCode,
           );
         }
+        issue = LtiOAuthResponseIssue.contentType;
         if (response.headers['content-type']
                 ?.split(';')
                 .first
@@ -163,6 +181,7 @@ final class LtiOAuthClient {
           await response.stream.listen(null).cancel();
           throw const FormatException();
         }
+        issue = LtiOAuthResponseIssue.responseSize;
         final bytes = <int>[];
         await for (final chunk in response.stream) {
           if (bytes.length + chunk.length > maxResponseBytes) {
@@ -170,20 +189,25 @@ final class LtiOAuthClient {
           }
           bytes.addAll(chunk);
         }
+        issue = LtiOAuthResponseIssue.json;
         final data = jsonDecode(utf8.decode(bytes));
         if (data is! Map<String, dynamic>) throw const FormatException();
         final value = data['access_token'];
         final type = data['token_type'];
         final lifetime = data['expires_in'];
-        if (value is! String ||
-            !_bearer.hasMatch(value) ||
-            type is! String ||
-            type.toLowerCase() != 'bearer' ||
-            lifetime is! int ||
-            lifetime <= 0 ||
-            lifetime > 2147483647) {
+        issue = LtiOAuthResponseIssue.accessToken;
+        if (value is! String || !_bearer.hasMatch(value)) {
           throw const FormatException();
         }
+        issue = LtiOAuthResponseIssue.tokenType;
+        if (type is! String || type.toLowerCase() != 'bearer') {
+          throw const FormatException();
+        }
+        issue = LtiOAuthResponseIssue.expiresIn;
+        if (lifetime is! int || lifetime <= 0 || lifetime > 2147483647) {
+          throw const FormatException();
+        }
+        issue = LtiOAuthResponseIssue.scope;
         final scopeValue = data['scope'];
         final granted = data.containsKey('scope')
             ? (scopeValue is String
@@ -196,6 +220,7 @@ final class LtiOAuthClient {
         if (!granted.containsAll(scopes)) {
           throw const LtiOAuthException(LtiOAuthErrorCode.insufficientScope);
         }
+        issue = LtiOAuthResponseIssue.expired;
         final expiry = started.add(Duration(seconds: lifetime));
         if (!expiry.isAfter(_clock())) throw const FormatException();
         return LtiAccessToken._(value, granted, expiry);
@@ -203,7 +228,11 @@ final class LtiOAuthClient {
     } on LtiOAuthException {
       rethrow;
     } on FormatException {
-      throw const LtiOAuthException(LtiOAuthErrorCode.invalidResponse);
+      throw LtiOAuthException(
+        LtiOAuthErrorCode.invalidResponse,
+        statusCode: statusCode,
+        responseIssue: issue,
+      );
     } on Exception {
       throw const LtiOAuthException(LtiOAuthErrorCode.unavailable);
     } finally {

@@ -27,7 +27,8 @@ Future<String> serviceReadReport(
       lines.add('$label: ${await run()}');
     } on LtiOAuthException catch (error) {
       lines.add(
-        '$label: OAuth ${error.code.name}; HTTP ${error.statusCode ?? 'n/a'}',
+        '$label: OAuth ${error.code.name}; HTTP ${error.statusCode ?? 'n/a'}'
+        '${error.responseIssue == null ? '' : '; validation=${error.responseIssue!.name}'}',
       );
     } on LtiServiceException catch (error) {
       lines.add(
