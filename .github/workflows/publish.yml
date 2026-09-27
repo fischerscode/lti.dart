@@ -41,9 +41,11 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: fvm dart run tool/release.dart "$RELEASE_TAG"
-      - name: Check publishable archive
-        working-directory: packages/${{ steps.release.outputs.package }}
-        run: fvm dart pub publish --dry-run
-      - name: Publish tagged package
-        working-directory: packages/${{ steps.release.outputs.package }}
-        run: fvm dart pub publish --force
+      # Temporarily disabled for the manual first publication.
+      # Re-enable after publishing both packages and pushing the initial tags.
+      # - name: Check publishable archive
+      #   working-directory: packages/${{ steps.release.outputs.package }}
+      #   run: fvm dart pub publish --dry-run
+      # - name: Publish tagged package
+      #   working-directory: packages/${{ steps.release.outputs.package }}
+      #   run: fvm dart pub publish --force
